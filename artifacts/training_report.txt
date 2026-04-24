@@ -1,0 +1,5 @@
+GestureBridge baseline training report
+train_accuracy_float=1.0000
+val_accuracy_float=1.0000
+val_accuracy_int8=1.0000
+test_accuracy_int8=1.0000
