@@ -78,7 +78,7 @@ def test_capture_mic(alsa_capture: str, seconds: float) -> None:
             "-f",
             "cd",
             "-d",
-            str(seconds),
+            str(int(seconds)),  # arecord -d requires an integer on some distros
             "/tmp/gesturebridge_smoke_mic.wav",
         ]
     )
