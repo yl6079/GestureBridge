@@ -41,13 +41,15 @@ class OfflineASR:
         if not self._use_mock:
             try:
                 from vosk import Model
-                import sounddevice  # noqa: F401 — ensure available
+                import sounddevice  # noqa: F401 — ensure available (raises OSError if libportaudio missing)
                 model_dir = Path(self.model_path)
                 if model_dir.exists():
                     self._model = Model(str(model_dir))
                 else:
                     self._use_mock = True
-            except ImportError:
+            except (ImportError, OSError):
+                # ImportError: vosk/sounddevice not installed
+                # OSError: libportaudio shared library not found
                 self._use_mock = True
 
     def transcribe(self, audio_text_proxy: str = "") -> str:

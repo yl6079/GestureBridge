@@ -40,15 +40,17 @@ class LandmarkExtractor:
     def extract(self, frame: np.ndarray) -> np.ndarray:
         if self._use_mock or self._hands is None:
             return self._stub_extract(frame)
+        # Only run MediaPipe on real camera frames: 3-D array (H, W, 3) with
+        # enough resolution (at least 32×32). Smaller or 2-D arrays are
+        # synthetic test fixtures — use the stub instead.
+        if frame.ndim != 3 or frame.shape[2] != 3 or min(frame.shape[:2]) < 32:
+            return self._stub_extract(frame)
         return self._mediapipe_extract(frame)
 
     def _mediapipe_extract(self, frame: np.ndarray) -> np.ndarray:
         import cv2
-        # Convert to RGB as required by MediaPipe
-        if frame.ndim == 3 and frame.shape[2] == 3:
-            rgb = cv2.cvtColor(frame.astype(np.uint8), cv2.COLOR_BGR2RGB)
-        else:
-            rgb = frame.astype(np.uint8)
+        # frame is guaranteed (H, W, 3) BGR by the check in extract()
+        rgb = cv2.cvtColor(frame.astype(np.uint8), cv2.COLOR_BGR2RGB)
 
         results = self._hands.process(rgb)
 
