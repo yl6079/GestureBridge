@@ -30,10 +30,20 @@ def _decode_and_resize(image_path: tf.Tensor, image_size: int) -> tf.Tensor:
 
 
 def _augment(image: tf.Tensor) -> tf.Tensor:
-    image = tf.image.random_brightness(image, max_delta=0.15)
-    image = tf.image.random_contrast(image, lower=0.8, upper=1.2)
-    image = tf.image.random_saturation(image, lower=0.8, upper=1.2)
-    image = tf.image.random_flip_left_right(image)
+    # ASL signs are chirality-sensitive (J vs L, the trajectory of J/Z) so
+    # horizontal flip is OFF — that was a real bug in the previous pipeline.
+    image = tf.image.random_brightness(image, max_delta=0.2)
+    image = tf.image.random_contrast(image, lower=0.75, upper=1.25)
+    image = tf.image.random_saturation(image, lower=0.75, upper=1.25)
+    image = tf.image.random_hue(image, max_delta=0.05)
+    # Small random crop+pad simulates the "hand isn't perfectly centered"
+    # case we hit on the C270 webcam, without needing MediaPipe at train time.
+    h = tf.shape(image)[0]
+    w = tf.shape(image)[1]
+    pad = tf.cast(tf.cast(h, tf.float32) * 0.08, tf.int32)
+    image = tf.image.resize_with_crop_or_pad(image, h + pad, w + pad)
+    image = tf.image.random_crop(image, size=[h, w, 3])
+    image = tf.clip_by_value(image, 0.0, 255.0)
     return image
 
 
