@@ -1,0 +1,21 @@
+sign_id,meaning,tts_text,image_key
+0,hello,Hello,sign_hello.png
+1,thanks,Thank you,sign_thanks.png
+2,yes,Yes,sign_yes.png
+3,no,No,sign_no.png
+4,help,Help,sign_help.png
+5,please,Please,sign_please.png
+6,water,Water,sign_water.png
+7,food,Food,sign_food.png
+8,bathroom,Bathroom,sign_bathroom.png
+9,good,Good,sign_good.png
+10,bad,Bad,sign_bad.png
+11,sorry,Sorry,sign_sorry.png
+12,stop,Stop,sign_stop.png
+13,go,Go,sign_go.png
+14,left,Left,sign_left.png
+15,right,Right,sign_right.png
+16,up,Up,sign_up.png
+17,down,Down,sign_down.png
+18,friend,Friend,sign_friend.png
+19,family,Family,sign_family.png

@@ -1,0 +1,15 @@
+[Unit]
+Description=GestureBridge standby daemon
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/gesturebridge/local
+ExecStart=/opt/gesturebridge/local/.venv/bin/python -m gesturebridge.app --run-daemon
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+

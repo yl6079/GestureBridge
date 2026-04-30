@@ -1,0 +1,45 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv311/
+venv/
+env/
+.uv-python/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.mplconfig/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and local runtime files
+*.log
+*.tmp
+*.swp
+
+# Large datasets and generated data
+data/
+asl_alphabet/
+asl_alphabet.zip
+
+# Training/export artifacts
+artifacts/
+*.keras
+*.h5
+*.tflite
+*.onnx
+*.npz
+
+# Local test packaging area
+test/
