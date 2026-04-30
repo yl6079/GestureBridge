@@ -56,9 +56,14 @@ def main() -> int:
     mn = ASL29TFLiteRuntime(
         model_path=args.mobilenet,
         labels_path=args.labels,
-        use_hand_crop=False,  # we'll feed it pre-cropped images directly
+        use_hand_crop=False,
     )
     lm = LandmarkClassifier(model_path=args.landmark_mlp, labels_path=args.labels)
+    # The MobileNet was trained on un-cropped Kaggle images (already
+    # hand-filled at 200x200). For a fair Kaggle-test eval, feed the
+    # full image. Use MediaPipe only to extract landmarks for the MLP.
+    # (At C270 inference time we DO crop — that's the use_hand_crop path
+    # in ASL29TFLiteRuntime; this script targets Kaggle eval.)
 
     counters = {"mobilenet": 0, "landmark": 0, "ensemble": 0}
     no_hand = 0
@@ -72,15 +77,16 @@ def main() -> int:
         crop = cropper.crop(rgb)
         true = row.class_name
 
+        # MobileNet always sees the full image (matches training).
+        mn_res = mn.predict(img)
+        mn_pred, mn_conf = mn_res.label, mn_res.confidence
+
         if not crop.found or crop.landmarks is None:
-            # Both heads default to "nothing" with low conf in the runtime.
-            mn_pred, mn_conf = "nothing", 0.5
-            lm_pred, lm_conf = "nothing", 0.5
+            # No landmarks available — landmark MLP cannot vote. Fall back
+            # to MobileNet alone and count this row's ensemble = MobileNet.
+            lm_pred, lm_conf = "nothing", 0.0
             no_hand += 1
         else:
-            cropped_bgr = cv2.cvtColor(crop.image, cv2.COLOR_RGB2BGR)
-            mn_res = mn.predict(cropped_bgr)
-            mn_pred, mn_conf = mn_res.label, mn_res.confidence
             lm_res = lm.predict(crop.landmarks)
             lm_pred, lm_conf = lm_res.label, lm_res.confidence
 
