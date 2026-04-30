@@ -36,15 +36,31 @@ class LandmarkClassifier:
     labels_path: Path
     threads: int = 2
     labels: list[str] = field(init=False)
-    interpreter: object = field(init=False)
-    input_details: dict = field(init=False)
-    output_details: dict = field(init=False)
+    # TFLite path
+    interpreter: object = field(init=False, default=None)
+    input_details: dict = field(init=False, default=None)
+    output_details: dict = field(init=False, default=None)
+    # Numpy MLP path (used when model_path ends in .npz)
+    _coefs: list = field(init=False, default=None)
+    _intercepts: list = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         self.labels = [
             line.strip() for line in self.labels_path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+        if str(self.model_path).endswith(".npz"):
+            self._load_numpy(self.model_path)
+        else:
+            self._load_tflite(self.model_path)
+
+    def _load_numpy(self, path: Path) -> None:
+        data = np.load(path)
+        n = int(data["n_layers"])
+        self._coefs = [data[f"W{i}"] for i in range(n)]
+        self._intercepts = [data[f"b{i}"] for i in range(n)]
+
+    def _load_tflite(self, path: Path) -> None:
         Interpreter = None
         try:
             from tflite_runtime.interpreter import Interpreter as _I
@@ -57,22 +73,31 @@ class LandmarkClassifier:
                 import tensorflow as tf
                 Interpreter = tf.lite.Interpreter
         try:
-            self.interpreter = Interpreter(model_path=str(self.model_path), num_threads=self.threads)
+            self.interpreter = Interpreter(model_path=str(path), num_threads=self.threads)
         except TypeError:
-            self.interpreter = Interpreter(model_path=str(self.model_path))
+            self.interpreter = Interpreter(model_path=str(path))
         self.interpreter.allocate_tensors()
         self.input_details = self.interpreter.get_input_details()[0]
         self.output_details = self.interpreter.get_output_details()[0]
 
     def predict(self, landmarks_21x3: np.ndarray) -> LandmarkPrediction:
         t0 = perf_counter()
-        x = _normalize_landmarks(landmarks_21x3)[None, ...].astype(np.float32)
-        self.interpreter.set_tensor(self.input_details["index"], x)
-        self.interpreter.invoke()
-        out = self.interpreter.get_tensor(self.output_details["index"])[0].astype(np.float32)
-        if out.min() < -0.01 or abs(out.sum() - 1.0) > 0.05:
-            e = np.exp(out - out.max())
+        x = _normalize_landmarks(landmarks_21x3).astype(np.float32)
+        if self._coefs is not None:
+            h = x
+            for W, b in zip(self._coefs[:-1], self._intercepts[:-1]):
+                h = np.maximum(0.0, h @ W + b)
+            logits = h @ self._coefs[-1] + self._intercepts[-1]
+            e = np.exp(logits - logits.max())
             out = e / e.sum()
+        else:
+            inp = x[None, ...]
+            self.interpreter.set_tensor(self.input_details["index"], inp)
+            self.interpreter.invoke()
+            out = self.interpreter.get_tensor(self.output_details["index"])[0].astype(np.float32)
+            if out.min() < -0.01 or abs(out.sum() - 1.0) > 0.05:
+                e = np.exp(out - out.max())
+                out = e / e.sum()
         idx = int(np.argmax(out))
         return LandmarkPrediction(
             label=self.labels[idx] if idx < len(self.labels) else f"class_{idx}",

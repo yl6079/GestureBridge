@@ -119,14 +119,17 @@ def main() -> None:
         # Optional landmark MLP — only attached if its TFLite file exists. The
         # ensemble rule lives in MainRuntime._maybe_ensemble.
         landmark_classifier = None
-        landmark_tflite_path = Path("artifacts/asl29/landmark_mlp/landmark_mlp.tflite")
-        if landmark_tflite_path.exists():
-            from gesturebridge.pipelines.landmark_classifier import LandmarkClassifier
-            landmark_classifier = LandmarkClassifier(
-                model_path=landmark_tflite_path,
-                labels_path=Path(cfg.asl29.data.labels_path),
-            )
-            print(f"[app] landmark MLP attached: {landmark_tflite_path}")
+        landmark_mlp_dir = Path("artifacts/asl29/landmark_mlp")
+        for _lm_name in ("landmark_mlp.npz", "landmark_mlp.tflite"):
+            _lm_path = landmark_mlp_dir / _lm_name
+            if _lm_path.exists():
+                from gesturebridge.pipelines.landmark_classifier import LandmarkClassifier
+                landmark_classifier = LandmarkClassifier(
+                    model_path=_lm_path,
+                    labels_path=Path(cfg.asl29.data.labels_path),
+                )
+                print(f"[app] landmark MLP attached: {_lm_path}")
+                break
         main_runtime = MainRuntime(
             config=cfg,
             infer=infer,
