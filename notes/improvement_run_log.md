@@ -144,8 +144,13 @@ Ensemble is +2.7pp over MobileNet alone. Top confusions:
 - Y → L (thumb pose similarity), M ↔ N (multi-finger similarity)
 - S ↔ E (closed fist variants)
 
-INT8 size: 1.2MB (vs 3.8MB FP32). INT8 accuracy not yet evaluated on
-Mac (XNNPACK handles uint8→float32 mixed INT8 correctly there).
+INT8 accuracy evaluated on Mac (disabling XNNPACK via
+`BUILTIN_WITHOUT_DEFAULT_DELEGATES`): **21.8%** — completely broken.
+All predictions collapse to "F" or "space". Root cause: INT8 was
+calibrated from Kaggle train images, but Kaggle images are already
+hand-filled (uniform dark background) → wildly wrong scale factors
+for any real deployment. Do NOT deploy INT8 until re-calibrated with
+C270 camera frames (P4).
 
 ## Pending
 

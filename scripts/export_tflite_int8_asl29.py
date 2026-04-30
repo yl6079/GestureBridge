@@ -149,22 +149,28 @@ def _load_image(path: str, image_size: int) -> np.ndarray:
 def _evaluate_tflite(tflite_path: Path, csv_path: Path, image_size: int) -> dict[str, float]:
     manifest = load_manifest(csv_path)
     interpreter = None
-    for _attempt, _kwargs in enumerate([
-        {},
-        {"experimental_delegates": [], "num_threads": 1},
-    ]):
+    _fallback_tried = False
+    try:
+        _interp = tf.lite.Interpreter(model_path=str(tflite_path))
+        _interp.allocate_tensors()
+        interpreter = _interp
+    except RuntimeError as exc:
+        if "XNNPACK" not in str(exc) and "failed to prepare" not in str(exc):
+            raise
+        print(f"[eval] XNNPACK delegate failed; retrying without default delegates.")
+        _fallback_tried = True
+    if interpreter is None and _fallback_tried:
         try:
-            _interp = tf.lite.Interpreter(model_path=str(tflite_path), **_kwargs)
+            from tensorflow.lite.python.interpreter import OpResolverType as _ORT
+            _interp = tf.lite.Interpreter(
+                model_path=str(tflite_path),
+                experimental_op_resolver_type=_ORT.BUILTIN_WITHOUT_DEFAULT_DELEGATES,
+            )
             _interp.allocate_tensors()
             interpreter = _interp
-            break
-        except RuntimeError as exc:
-            if "XNNPACK" not in str(exc) and "failed to prepare" not in str(exc):
-                raise
-            print(f"[eval] XNNPACK fallback attempt {_attempt+1} failed: {exc}")
-    if interpreter is None:
-        print(f"[eval] Cannot evaluate {tflite_path.name}: XNNPACK unavailable in this TF build; skipping.")
-        return {"warning": "xnnpack_unavailable", "tflite_path": str(tflite_path)}
+        except Exception as exc2:
+            print(f"[eval] Cannot evaluate {tflite_path.name}: {exc2}; skipping.")
+            return {"warning": "xnnpack_unavailable", "tflite_path": str(tflite_path)}
     input_details = interpreter.get_input_details()[0]
     output_details = interpreter.get_output_details()[0]
 

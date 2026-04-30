@@ -13,7 +13,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
-from ai_edge_litert.interpreter import Interpreter
+from ai_edge_litert.interpreter import Interpreter, OpResolverType
 
 
 def _preprocess(path: str, size: int) -> np.ndarray:
@@ -41,8 +41,17 @@ def main() -> None:
     if args.limit > 0:
         df = df.sample(n=min(args.limit, len(df)), random_state=0).reset_index(drop=True)
 
-    interp = Interpreter(model_path=str(args.model))
-    interp.allocate_tensors()
+    try:
+        interp = Interpreter(model_path=str(args.model))
+        interp.allocate_tensors()
+    except RuntimeError as _exc:
+        if "XNNPACK" not in str(_exc) and "failed to prepare" not in str(_exc):
+            raise
+        interp = Interpreter(
+            model_path=str(args.model),
+            experimental_op_resolver_type=OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES,
+        )
+        interp.allocate_tensors()
     in_det = interp.get_input_details()[0]
     out_det = interp.get_output_details()[0]
     in_size = int(in_det["shape"][1])
