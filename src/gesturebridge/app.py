@@ -113,6 +113,8 @@ def main() -> None:
             threads=cfg.asl29.runtime.tflite_threads,
             image_size=cfg.asl29.data.image_size,
             top_k=cfg.asl29.runtime.preview_top_k,
+            use_hand_crop=cfg.asl29.runtime.use_hand_crop,
+            hand_cropper_model_path=Path(cfg.asl29.runtime.hand_landmarker_path),
         )
         main_runtime = MainRuntime(config=cfg, infer=infer, asr=OfflineASR(), tts=TTSOutput())
         ui_state = UIState(status="active", mode=main_runtime.mode, target=main_runtime.learn_target)

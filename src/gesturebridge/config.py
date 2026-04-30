@@ -93,6 +93,8 @@ class ASL29RuntimeConfig:
     inference_interval_ms: int = 300
     webcam_width: int = 640
     webcam_height: int = 480
+    use_hand_crop: bool = True
+    hand_landmarker_path: Path = Path("artifacts/mediapipe/hand_landmarker.task")
 
 
 @dataclass(slots=True)
