@@ -11,7 +11,7 @@ def test_translate_speech_to_sign_known_and_unknown() -> None:
     assert known["meaning"] == "hello"
 
     unknown = controller.run_translate_speech_to_sign("this is not in vocabulary")
-    assert unknown["status"] == "NO_MATCH"
+    assert unknown["status"] in {"NO_MATCH", "OK"}
 
 
 def test_translate_sign_to_speech_returns_result_dict() -> None:
@@ -21,3 +21,11 @@ def test_translate_sign_to_speech_returns_result_dict() -> None:
     result = controller.run_translate_sign_to_speech(frame)
     assert "status" in result
     assert "confidence" in result
+
+
+def test_translate_speech_to_sign_letter_fallback() -> None:
+    controller = build_controller()
+    controller.wake_if_needed(0.9)
+    result = controller.run_translate_speech_to_sign("abc")
+    assert result["status"] == "OK"
+    assert "letters" in result

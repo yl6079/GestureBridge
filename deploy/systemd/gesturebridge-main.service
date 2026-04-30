@@ -1,0 +1,15 @@
+[Unit]
+Description=GestureBridge main app process
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/gesturebridge/local
+ExecStart=/opt/gesturebridge/local/.venv/bin/python -m gesturebridge.app --run-main
+Restart=on-failure
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+

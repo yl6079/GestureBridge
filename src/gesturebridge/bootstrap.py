@@ -94,6 +94,7 @@ def build_controller(config: SystemConfig | None = None) -> GestureBridgeControl
         tts=TTSOutput(),
         vocabulary=vocabulary,
         prediction_threshold=cfg.thresholds.prediction_confidence,
+        labels_path=cfg.asl29.data.labels_path,
     )
     learn = LearnMode(
         landmark_extractor=extractor,

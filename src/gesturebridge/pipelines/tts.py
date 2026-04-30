@@ -1,40 +1,30 @@
 from __future__ import annotations
 
-import os
+from dataclasses import dataclass
+import shutil
+import subprocess
 
 
+@dataclass(slots=True)
 class TTSOutput:
-    """Real TTS output using pyttsx3 + espeak-ng.
+    """Simple TTS abstraction.
 
-    Falls back to text-only stub when:
-    - pyttsx3 is not installed
-    - espeak-ng is not present on the system
-    - GESTUREBRIDGE_MOCK_TTS=1 is set
-
-    Always returns "[TTS] {text}" string regardless of mode,
-    so existing tests continue to pass unchanged.
+    The demo returns text while production can route to a real speaker engine.
     """
 
-    def __init__(self) -> None:
-        self._use_mock = os.environ.get("GESTUREBRIDGE_MOCK_TTS", "0") == "1"
-        self._engine = None
+    speaker_cmd: str = ""
 
-        if not self._use_mock:
-            try:
-                import pyttsx3
-                engine = pyttsx3.init()
-                engine.setProperty("rate", 150)
-                engine.setProperty("volume", 1.0)
-                self._engine = engine
-            except Exception:
-                # pyttsx3 not installed or espeak-ng not present — fall back silently
-                self._use_mock = True
+    def __post_init__(self) -> None:
+        if self.speaker_cmd:
+            return
+        # Prefer espeak-ng when available; fall back to legacy espeak.
+        self.speaker_cmd = shutil.which("espeak-ng") or shutil.which("espeak") or ""
 
     def speak(self, text: str) -> str:
-        if not self._use_mock and self._engine is not None:
+        if self.speaker_cmd:
             try:
-                self._engine.say(text)
-                self._engine.runAndWait()
-            except Exception:
-                pass  # Audio failure is non-fatal; text output still returned
+                subprocess.run([self.speaker_cmd, text], check=False, capture_output=True)
+            except OSError:
+                # Keep behavior non-fatal on devices without audio output.
+                pass
         return f"[TTS] {text}"

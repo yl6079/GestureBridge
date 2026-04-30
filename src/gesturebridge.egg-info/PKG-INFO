@@ -6,3 +6,11 @@ Requires-Python: >=3.10
 Requires-Dist: numpy>=1.24
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
+Provides-Extra: ml
+Requires-Dist: tensorflow>=2.16; extra == "ml"
+Requires-Dist: pandas>=2.2; extra == "ml"
+Requires-Dist: pillow>=10.0; extra == "ml"
+Requires-Dist: scikit-learn>=1.4; extra == "ml"
+Requires-Dist: matplotlib>=3.8; extra == "ml"
+Requires-Dist: opencv-python>=4.9; extra == "ml"
+Requires-Dist: kaggle>=1.6; extra == "ml"
