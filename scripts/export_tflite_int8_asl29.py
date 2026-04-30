@@ -148,19 +148,23 @@ def _load_image(path: str, image_size: int) -> np.ndarray:
 
 def _evaluate_tflite(tflite_path: Path, csv_path: Path, image_size: int) -> dict[str, float]:
     manifest = load_manifest(csv_path)
-    try:
-        interpreter = tf.lite.Interpreter(model_path=str(tflite_path))
-        interpreter.allocate_tensors()
-    except RuntimeError as exc:
-        if "XNNPACK" not in str(exc):
-            raise
-        # Fallback for environments where XNNPACK delegate fails to prepare some int8 graphs.
-        interpreter = tf.lite.Interpreter(
-            model_path=str(tflite_path),
-            experimental_delegates=[],
-            num_threads=1,
-        )
-        interpreter.allocate_tensors()
+    interpreter = None
+    for _attempt, _kwargs in enumerate([
+        {},
+        {"experimental_delegates": [], "num_threads": 1},
+    ]):
+        try:
+            _interp = tf.lite.Interpreter(model_path=str(tflite_path), **_kwargs)
+            _interp.allocate_tensors()
+            interpreter = _interp
+            break
+        except RuntimeError as exc:
+            if "XNNPACK" not in str(exc) and "failed to prepare" not in str(exc):
+                raise
+            print(f"[eval] XNNPACK fallback attempt {_attempt+1} failed: {exc}")
+    if interpreter is None:
+        print(f"[eval] Cannot evaluate {tflite_path.name}: XNNPACK unavailable in this TF build; skipping.")
+        return {"warning": "xnnpack_unavailable", "tflite_path": str(tflite_path)}
     input_details = interpreter.get_input_details()[0]
     output_details = interpreter.get_output_details()[0]
 
@@ -267,6 +271,16 @@ def _validate_tflite_bytes(model_bytes: bytes, label: str) -> None:
 def main() -> None:
     args = _parse_args()
     cfg = SystemConfig().asl29
+    # If a sweep ran with --tag, the best model lives at a tagged path
+    # recorded in best_pointer.json rather than the canonical best.keras.
+    _pointer = Path("artifacts/asl29/best_pointer.json")
+    if _pointer.exists():
+        import json as _json
+        _ptr = _json.loads(_pointer.read_text())
+        _mp = Path(_ptr["best_model_path"])
+        if _mp.exists():
+            cfg.training.model_path = _mp
+            print(f"[export] Using sweep winner: {_mp}")
     model = tf.keras.models.load_model(cfg.training.model_path)
 
     cfg.export.fp32_tflite_path.parent.mkdir(parents=True, exist_ok=True)

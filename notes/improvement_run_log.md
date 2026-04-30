@@ -102,11 +102,54 @@ the sweep + ensemble + further augmentation targets that gap.
 - `pipelines/asl29_tflite.py`: log XNNPACK fallback instead of
   swallowing silently.
 
+## 2026-04-30 — P2 sweep results (4090)
+
+Sweep: 4 configs on RTX 4090 24GB, contiguous split (frames 2701-3000
+test). All runs use ASL-correct augmentation (no horizontal flip).
+
+| Tag | Unfreeze | Dropout | Best val |
+|---|---|---|---|
+| c_u15_d20 | 15 | 0.2 | 0.799 |
+| c_u30_d20 | 30 | 0.2 | **0.874** |
+| c_u50_d20 | 50 | 0.2 | **0.886** ← winner |
+| c_u30_d30 | 30 | 0.3 | 0.870 |
+
+Key insight: 50 unfrozen layers edged out 30 (0.886 vs 0.874); higher
+dropout (0.3) hurt slightly (0.870). Winner: `c_u50_d20`.
+
+## 2026-04-30 — P3 landmark MLP trained
+
+- Extraction: 92% detected in train, 54-59% in val/test (contiguous
+  later frames are harder for MediaPipe at min_confidence=0.05).
+- sklearn MLPClassifier, 256→128 hidden, 83 epochs, early stop:
+  - Val accuracy (detected only): **81.7%**
+  - Test accuracy (detected only): **82.0%**
+  - Test top-3 accuracy: 87.1%
+- Model exported as `.npz` (199KB); numpy inference <1ms per frame.
+- `LandmarkClassifier` now supports both `.npz` and `.tflite` formats.
+
+## 2026-04-30 — Final ensemble evaluation (gate #1)
+
+Three-way comparison on contiguous test split (8700 samples, frames
+2701–3000 per class, never adjacent to train frames):
+
+| Head | Test accuracy |
+|---|---|
+| MobileNet FP32 (c_u50_d20) | 80.2% |
+| Landmark MLP (detected only, 54% coverage) | 47.1% |
+| **Ensemble** | **82.9%** |
+
+Ensemble is +2.7pp over MobileNet alone. Top confusions:
+- X, T, J, Z, Q, U → "nothing" (unusual poses, dynamic/trajectory signs)
+- Y → L (thumb pose similarity), M ↔ N (multi-finger similarity)
+- S ↔ E (closed fist variants)
+
+INT8 size: 1.2MB (vs 3.8MB FP32). INT8 accuracy not yet evaluated on
+Mac (XNNPACK handles uint8→float32 mixed INT8 correctly there).
+
 ## Pending
 
-- Pull best-of-sweep TFLite from 4090, eval on contiguous test.
-- Train landmark MLP locally once extraction finishes (~10 min after).
-- `eval_ensemble.py` to compare MobileNet-only / landmark-only /
-  ensemble on the test split — picks the headline.
-- P4 capture + INT8 retry — needs Yizheng coordination on the Pi.
-- P5.4: demo recording once headline model is settled.
+- Evaluate INT8 model accuracy on Mac (run eval_split on model_int8.tflite).
+- P4: INT8 calibration from C270 — needs Yizheng Pi coordination.
+- Ship new model to Pi (replace model_fp32.tflite via deploy_to_pi.sh).
+- P5.4: demo recording once model is live on Pi.
