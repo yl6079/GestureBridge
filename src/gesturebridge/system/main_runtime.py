@@ -53,6 +53,7 @@ class MainRuntime:
     infer: ASL29TFLiteRuntime
     asr: OfflineASR
     tts: TTSOutput
+    landmark_classifier: object | None = None  # optional LandmarkClassifier for ensemble
     mode: str = "read"
     last_activity_ts: float = field(default_factory=monotonic)
     prediction_window: deque[tuple[str, float]] = field(default_factory=deque)
@@ -111,11 +112,42 @@ class MainRuntime:
         self.touch()
         return self.learn_target
 
+    def _maybe_ensemble(self, result: InferenceResult) -> tuple[str, float, dict | None]:
+        """Combine MobileNet + landmark MLP if both are present.
+
+        Decision rule (the why: ASL alphabet is highly geometric — landmark
+        models tend to be more robust to lighting/skin/background. We trust
+        landmark predictions unless MobileNet is very confident, on the
+        assumption that high-confidence MobileNet wins on signs that are
+        truly visual rather than geometric, e.g. those involving back-of-hand
+        orientation that landmarks alone don't capture):
+
+        - If no landmarks (no hand detected) → use MobileNet result as-is.
+        - If MobileNet confidence >= 0.85 AND landmark confidence < 0.95 →
+          use MobileNet (high-confidence visual override).
+        - If both heads agree → use the agreed label, mean confidence.
+        - Else → use landmark MLP (default trust).
+        """
+        if self.landmark_classifier is None or result.landmarks is None:
+            return result.label, result.confidence, None
+        try:
+            lm_pred = self.landmark_classifier.predict(result.landmarks)
+        except Exception as exc:
+            print(f"[main_runtime] landmark predict failed: {exc}", flush=True)
+            return result.label, result.confidence, None
+        info = {"landmark_label": lm_pred.label, "landmark_confidence": lm_pred.confidence}
+        if result.label == lm_pred.label:
+            return result.label, (result.confidence + lm_pred.confidence) / 2.0, info
+        if result.confidence >= 0.85 and lm_pred.confidence < 0.95:
+            return result.label, result.confidence, info
+        return lm_pred.label, lm_pred.confidence, info
+
     def process_camera_frame(self, frame) -> dict[str, object]:
         result = self.infer.predict(frame)
         self.latest_result = result
         self.touch()
-        self.prediction_window.append((result.label, float(result.confidence)))
+        ensembled_label, ensembled_conf, ensemble_info = self._maybe_ensemble(result)
+        self.prediction_window.append((ensembled_label, float(ensembled_conf)))
         if len(self.prediction_window) > self.config.asl29.runtime.stable_prediction_window:
             self.prediction_window.popleft()
 
@@ -129,12 +161,17 @@ class MainRuntime:
 
         response: dict[str, object] = {
             "mode": self.mode,
-            "label": result.label,
+            "label": ensembled_label,
             "stable_label": stable_label,
-            "confidence": result.confidence,
+            "confidence": ensembled_conf,
             "latency_ms": result.latency_ms,
             "top_k": result.top_k,
+            "mobilenet_label": result.label,
+            "mobilenet_confidence": result.confidence,
+            "hand_detected": result.hand_detected,
         }
+        if ensemble_info:
+            response.update(ensemble_info)
         if self.mode == "read":
             now = monotonic()
             cooldown = self.config.thresholds.tts_repeat_interval_seconds

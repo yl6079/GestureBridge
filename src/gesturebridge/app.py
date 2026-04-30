@@ -116,7 +116,24 @@ def main() -> None:
             use_hand_crop=cfg.asl29.runtime.use_hand_crop,
             hand_cropper_model_path=Path(cfg.asl29.runtime.hand_landmarker_path),
         )
-        main_runtime = MainRuntime(config=cfg, infer=infer, asr=OfflineASR(), tts=TTSOutput())
+        # Optional landmark MLP — only attached if its TFLite file exists. The
+        # ensemble rule lives in MainRuntime._maybe_ensemble.
+        landmark_classifier = None
+        landmark_tflite_path = Path("artifacts/asl29/landmark_mlp/landmark_mlp.tflite")
+        if landmark_tflite_path.exists():
+            from gesturebridge.pipelines.landmark_classifier import LandmarkClassifier
+            landmark_classifier = LandmarkClassifier(
+                model_path=landmark_tflite_path,
+                labels_path=Path(cfg.asl29.data.labels_path),
+            )
+            print(f"[app] landmark MLP attached: {landmark_tflite_path}")
+        main_runtime = MainRuntime(
+            config=cfg,
+            infer=infer,
+            asr=OfflineASR(),
+            tts=TTSOutput(),
+            landmark_classifier=landmark_classifier,
+        )
         ui_state = UIState(status="active", mode=main_runtime.mode, target=main_runtime.learn_target)
         web = build_web_server(cfg.web.host, cfg.web.port, main_runtime, ui_state)
         web_thread = Thread(target=web.serve_forever, daemon=True)

@@ -22,6 +22,7 @@ class InferenceResult:
     top_k: list[tuple[str, float]]
     hand_detected: bool = True
     hand_bbox: tuple[int, int, int, int] | None = None
+    landmarks: np.ndarray | None = None  # (21, 3) original-image coords; only set when use_hand_crop and a hand was found
 
 
 def _prepare_frame(frame: np.ndarray, image_size: int) -> np.ndarray:
@@ -116,11 +117,13 @@ class ASL29TFLiteRuntime:
         t0 = perf_counter()
         hand_detected = True
         hand_bbox = None
+        landmarks: np.ndarray | None = None
         if self.use_hand_crop and self._cropper is not None:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             crop_res = self._cropper.crop(frame_rgb)
             hand_detected = crop_res.found
             hand_bbox = crop_res.bbox
+            landmarks = crop_res.landmarks
             if not crop_res.found:
                 # No hand → return "nothing" without spending the classifier.
                 latency_ms = (perf_counter() - t0) * 1000.0
@@ -132,6 +135,7 @@ class ASL29TFLiteRuntime:
                     top_k=[(nothing_label, 1.0)],
                     hand_detected=False,
                     hand_bbox=None,
+                    landmarks=None,
                 )
             input_tensor = _prepare_cropped_rgb(crop_res.image, self.image_size)
         else:
@@ -170,4 +174,5 @@ class ASL29TFLiteRuntime:
             top_k=top_k,
             hand_detected=hand_detected,
             hand_bbox=hand_bbox,
+            landmarks=landmarks,
         )
