@@ -43,3 +43,6 @@ artifacts/
 
 # Local test packaging area
 test/
+
+# Local credentials
+notes/pi_access.md

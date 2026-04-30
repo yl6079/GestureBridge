@@ -152,9 +152,30 @@ hand-filled (uniform dark background) → wildly wrong scale factors
 for any real deployment. Do NOT deploy INT8 until re-calibrated with
 C270 camera frames (P4).
 
+## 2026-04-30 — Pi deployment validated end-to-end
+
+- New model + landmark MLP + mediapipe artifact rsync'd via
+  `deploy_to_pi.sh` (backup at `/tmp/artifacts_pre_deploy_*.tgz`).
+- Installed `mediapipe 0.10.18` and `ai_edge_litert 2.1.4` in
+  `.venv311`. Mediapipe's protobuf<5 conflicts with TF 2.21's
+  protobuf>=6.31 → **uninstalled tensorflow** (our updated
+  `asl29_tflite.py` no longer imports TF; runtime path uses
+  `ai_edge_litert.Interpreter` exclusively).
+- 8 source files synced (hand_crop, landmark_classifier, modified
+  asl29_tflite, main_runtime, app, config, plus train-only data
+  pipeline + landmark_mlp model). Backup: `/tmp/src_pre_codedeploy_*.tgz`.
+- End-to-end smoke test on a captured C270 frame
+  (`notes/pi_validation/c270_empty_2026-04-30.jpg`):
+  - Pipeline output: `label=nothing conf=1.000 hand_detected=False`
+    (correctly short-circuits MobileNet when MediaPipe finds no hand)
+  - Latency: **37.6 ms mean / 37.7 ms median** over 10 runs → ~26 FPS,
+    well within the demo's real-time budget.
+
 ## Pending
 
-- Evaluate INT8 model accuracy on Mac (run eval_split on model_int8.tflite).
-- P4: INT8 calibration from C270 — needs Yizheng Pi coordination.
-- Ship new model to Pi (replace model_fp32.tflite via deploy_to_pi.sh).
-- P5.4: demo recording once model is live on Pi.
+- Yizheng to relaunch the web app and validate with a hand in frame.
+- P4 INT8 calibration from C270 — only if we want INT8 in addition to
+  FP32; Yizheng said FP32 on Pi is fine, so this is **deprioritized**.
+- 3-min demo video recording (Pi screen capture) — due Mon May 4.
+- 4-page ACM double-column report — due Mon May 4.
+- Push `shufeng` to `origin` (gate #4, needs sign-off).
