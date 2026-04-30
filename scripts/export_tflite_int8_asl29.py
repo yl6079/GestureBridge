@@ -207,7 +207,46 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Export only FP32 model and skip INT8 quantization/evaluation.",
     )
+    parser.add_argument(
+        "--calibration-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory of representative images organized as <dir>/<class>/<file>.png. "
+            "If provided, INT8 calibration uses these instead of train CSV. Pair with "
+            "scripts/capture_calibration_set.py to capture from the deployed C270 — "
+            "matching the deployment distribution is critical for usable INT8."
+        ),
+    )
+    parser.add_argument(
+        "--int8-float-output",
+        action="store_true",
+        help="Keep softmax output in float32 (uint8 input, float32 output). "
+             "Reduces accuracy loss from quantizing the head; recommended.",
+    )
     return parser.parse_args()
+
+
+def _representative_dataset_from_dir(calibration_dir: Path, image_size: int):
+    """RepresentativeDataset built from <dir>/<class>/<file> images."""
+    paths: list[Path] = []
+    for class_dir in sorted(p for p in calibration_dir.iterdir() if p.is_dir()):
+        paths.extend(sorted(class_dir.glob("*.png")) + sorted(class_dir.glob("*.jpg")))
+    if not paths:
+        raise RuntimeError(f"No images under {calibration_dir}")
+
+    def _generator():
+        for path in paths:
+            image_bytes = tf.io.read_file(str(path))
+            image = tf.io.decode_image(image_bytes, channels=3, expand_animations=False)
+            image = tf.image.resize(image, [image_size, image_size], method=tf.image.ResizeMethod.BILINEAR)
+            image = tf.cast(image, tf.float32)
+            image = preprocess_for_mobilenet(image)
+            image = tf.expand_dims(image, axis=0)
+            yield [tf.cast(image, tf.float32)]
+
+    print(f"[int8] using {len(paths)} calibration images from {calibration_dir}")
+    return _generator
 
 
 def _convert_tflite(converter: tf.lite.TFLiteConverter, enable_compat: bool) -> bytes:
@@ -261,14 +300,24 @@ def main() -> None:
 
     int8_converter = tf.lite.TFLiteConverter.from_keras_model(model)
     int8_converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    int8_converter.representative_dataset = representative_dataset_from_csv(
-        csv_path=cfg.data.train_csv,
-        image_size=cfg.data.image_size,
-        sample_count=cfg.export.representative_samples,
-    )
+    if args.calibration_dir is not None and args.calibration_dir.exists():
+        int8_converter.representative_dataset = _representative_dataset_from_dir(
+            args.calibration_dir,
+            image_size=cfg.data.image_size,
+        )
+    else:
+        int8_converter.representative_dataset = representative_dataset_from_csv(
+            csv_path=cfg.data.train_csv,
+            image_size=cfg.data.image_size,
+            sample_count=cfg.export.representative_samples,
+        )
     int8_converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-    int8_converter.inference_input_type = tf.int8
-    int8_converter.inference_output_type = tf.int8
+    if args.int8_float_output:
+        int8_converter.inference_input_type = tf.uint8
+        int8_converter.inference_output_type = tf.float32
+    else:
+        int8_converter.inference_input_type = tf.int8
+        int8_converter.inference_output_type = tf.int8
     try:
         int8_tflite = _convert_tflite(int8_converter, enable_compat=False)
     except Exception:

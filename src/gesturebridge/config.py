@@ -7,7 +7,11 @@ from pathlib import Path
 @dataclass(slots=True)
 class RuntimeThresholds:
     activity_trigger: float = 0.5
-    prediction_confidence: float = 0.08
+    # 0.08 was a near-zero filter (any prediction passed). With softmax over
+    # 29 classes, uniform-random is 1/29 ≈ 0.034; a usable signal needs to
+    # beat that handily. 0.4 is a calibrated starting point — revisit once
+    # the new model's calibration plot is in (P5.2).
+    prediction_confidence: float = 0.4
     learn_pass_confidence: float = 0.75
     inactivity_seconds: int = 20
     tts_repeat_interval_seconds: float = 1.5

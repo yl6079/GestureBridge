@@ -41,18 +41,13 @@ def _compile_model(
         )
     else:
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    if label_smoothing > 0:
-        # CategoricalCrossentropy supports label_smoothing; we need one-hot
-        # labels for it, so wrap with a from_logits-aware loss.
-        loss = tf.keras.losses.CategoricalCrossentropy(label_smoothing=label_smoothing)
-
-        def sparse_to_categorical(y_true, y_pred):
-            y_true = tf.one_hot(tf.cast(tf.squeeze(y_true), tf.int32), depth=num_classes)
-            return loss(y_true, y_pred)
-
-        loss_fn = sparse_to_categorical
-    else:
-        loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
+    # NOTE: label smoothing currently disabled. Wrapping CategoricalCrossentropy
+    # with a sparse-to-onehot adapter trips Keras's loss-tree introspection
+    # ("Cannot take the length of shape with unknown rank"). Bigger levers
+    # (no-flip augmentation + contiguous split) come first; revisit if needed
+    # by switching the data pipeline to emit one-hot labels directly.
+    _ = label_smoothing  # silence unused-arg
+    loss_fn = tf.keras.losses.SparseCategoricalCrossentropy()
     model.compile(
         optimizer=optimizer,
         loss=loss_fn,
