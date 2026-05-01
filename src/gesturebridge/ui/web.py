@@ -28,31 +28,57 @@ def _index_html() -> str:
 <html><head><meta charset="utf-8"><title>GestureBridge</title>
 <style>
 *{box-sizing:border-box}
+:root{
+  --bg-1:#060b16;
+  --bg-2:#0b1324;
+  --panel:#0f1a2f;
+  --panel-soft:rgba(15,26,47,.82);
+  --border:#2a3b5f;
+  --text:#e6edf7;
+  --muted:#9db0cf;
+  --accent:#4f8cff;
+  --accent-2:#7c5cff;
+  --ok:#22c55e;
+}
 body{
   font-family:Inter,Segoe UI,Arial,sans-serif;
   margin:0;
-  background:linear-gradient(120deg,#0b1220,#111827 45%,#0f172a);
-  color:#e5e7eb;
+  background:
+    radial-gradient(1200px 560px at 10% -10%, rgba(79,140,255,.24), transparent 55%),
+    radial-gradient(1000px 520px at 110% 0%, rgba(124,92,255,.2), transparent 50%),
+    linear-gradient(120deg,var(--bg-1),var(--bg-2) 50%,#0a1220);
+  color:var(--text);
   min-height:100vh;
 }
-.wrap{max-width:980px;margin:24px auto;padding:0 18px}
+.wrap{max-width:1040px;margin:20px auto 28px;padding:0 18px}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:14px;
+  margin-bottom:10px;
+  gap:12px;
 }
-.title{font-size:28px;font-weight:700;letter-spacing:.4px}
+.title{font-size:30px;font-weight:760;letter-spacing:.2px}
+.subtitle{font-size:13px;color:var(--muted);margin-top:3px}
 .badge{
-  font-size:13px;padding:8px 12px;border-radius:999px;
-  background:#1f2937;border:1px solid #374151;color:#cbd5e1;
+  font-size:13px;padding:8px 13px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(79,140,255,.24),rgba(124,92,255,.2));
+  border:1px solid rgba(117,150,207,.45);
+  color:#d8e5ff;
+  box-shadow:0 8px 24px rgba(0,0,0,.22);
 }
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 8px}
 button{
-  padding:11px 14px;border-radius:10px;border:1px solid #334155;
-  background:#111827;color:#e5e7eb;cursor:pointer;
+  padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(24,38,67,.9),rgba(17,29,53,.92));
+  color:var(--text);cursor:pointer;
   transition:all .15s ease;
+  font-weight:600;
 }
-button:hover{background:#1f2937;border-color:#475569}
-button.active{background:#2563eb;border-color:#2563eb;color:#fff}
+button:hover{transform:translateY(-1px);border-color:#4d6697;background:#1a2b4e}
+button.active{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;color:#fff;
+  box-shadow:0 8px 20px rgba(79,140,255,.35);
+}
 button:disabled{opacity:.6;cursor:wait}
 .grid{
   display:grid;
@@ -61,20 +87,23 @@ button:disabled{opacity:.6;cursor:wait}
   margin-top:14px;
 }
 .card{
-  background:rgba(17,24,39,.85);
-  border:1px solid #334155;
+  background:var(--panel-soft);
+  backdrop-filter:blur(6px);
+  border:1px solid var(--border);
   border-radius:14px;
   padding:14px;
   min-height:82px;
+  box-shadow:0 10px 30px rgba(1,8,20,.28);
 }
 .hidden{display:none}
 .preview{
   width:100%;
   border-radius:14px;
-  border:1px solid #334155;
+  border:1px solid var(--border);
   background:#000;
   min-height:260px;
   object-fit:cover;
+  box-shadow:0 10px 30px rgba(1,8,20,.45);
 }
 .sign-grid{
   display:grid;
@@ -83,8 +112,8 @@ button:disabled{opacity:.6;cursor:wait}
   margin-top:12px;
 }
 .sign-item{
-  background:rgba(17,24,39,.85);
-  border:1px solid #334155;
+  background:var(--panel-soft);
+  border:1px solid var(--border);
   border-radius:12px;
   padding:10px;
   text-align:center;
@@ -99,15 +128,34 @@ button:disabled{opacity:.6;cursor:wait}
 .sign-item .lbl{
   margin-top:6px;
   font-size:13px;
-  color:#cbd5e1;
+  color:#d1dff5;
 }
-.k{font-size:12px;color:#93c5fd;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-.v{font-size:19px;font-weight:600;word-break:break-word}
-.hint{margin-top:12px;color:#93c5fd;font-size:13px;min-height:20px}
+.k{font-size:12px;color:#8fb3ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.v{font-size:20px;font-weight:650;word-break:break-word}
+.hint{
+  margin-top:12px;
+  color:#9ec4ff;
+  font-size:13px;
+  min-height:20px;
+  padding:8px 10px;
+  border:1px dashed rgba(121,152,212,.45);
+  border-radius:10px;
+  background:rgba(12,22,40,.42);
+}
+@media (max-width:760px){
+  .wrap{padding:0 12px}
+  .title{font-size:24px}
+  .toolbar{gap:8px}
+  button{padding:10px 12px}
+  .v{font-size:18px}
+}
 </style></head><body>
 <div class="wrap">
   <div class="topbar">
-    <div class="title">GestureBridge</div>
+    <div>
+      <div class="title">GestureBridge</div>
+      <div class="subtitle">Real-time sign recognition and practice assistant</div>
+    </div>
     <div class="badge" id="currentMode">Mode: read</div>
   </div>
   <div class="toolbar">
@@ -125,7 +173,6 @@ button:disabled{opacity:.6;cursor:wait}
     </div>
   </div>
   <div class="grid">
-    <div class="card" id="card-status"><div class="k">Status</div><div class="v" id="status">-</div></div>
     <div class="card" id="card-prediction"><div class="k">Prediction</div><div class="v" id="prediction">-</div></div>
     <div class="card" id="card-confidence"><div class="k">Confidence</div><div class="v" id="confidence">0.00</div></div>
     <div class="card" id="card-tts"><div class="k">TTS</div><div class="v" id="tts">-</div></div>
@@ -146,15 +193,28 @@ let speechRecognizer = null;
 let speechRunning = false;
 let speechSupported = false;
 function setHint(msg){ document.getElementById('hint').textContent = msg; }
+function toSignAssetName(label){
+  const text = (label || '').trim();
+  if(!text){ return ''; }
+  const lower = text.toLowerCase();
+  if(lower === 'del' || lower === 'space' || lower === 'nothing'){
+    return `${lower}.jpg`;
+  }
+  const upper = text.toUpperCase();
+  if(/^[A-Z]$/.test(upper)){
+    return `${upper}.jpg`;
+  }
+  return `${lower}.jpg`;
+}
 function updateLearnTargetImage(target){
   const img = document.getElementById('learnTargetImage');
   if(!img) return;
-  const label = (target || '').toUpperCase();
-  if(!label){
+  const asset = toSignAssetName(target);
+  if(!asset){
     img.src = '';
     return;
   }
-  img.src = `/assets/signs/${label}1.jpg`;
+  img.src = `/assets/signs/${asset}`;
 }
 async function shiftLearnTarget(step){
   try{
@@ -249,7 +309,7 @@ function renderSignGallery(letters, signAssets){
     return;
   }
   letters.forEach((letter, idx)=>{
-    const asset = (signAssets && signAssets[idx]) ? signAssets[idx] : `${letter}1.jpg`;
+    const asset = (signAssets && signAssets[idx]) ? signAssets[idx] : toSignAssetName(letter);
     const src = `/assets/signs/${asset}`;
     const item = document.createElement('div');
     item.className = 'sign-item';
@@ -266,7 +326,7 @@ function toggleCard(id, show){
   el.classList.toggle('hidden', !show);
 }
 function applyModeLayout(mode){
-  // Common cards always visible: status/prediction/confidence
+  // Common cards always visible: prediction/confidence
   if(mode === 'read'){
     toggleCard('preview', true);
     toggleCard('card-prediction', true);
@@ -363,9 +423,9 @@ async function refresh(){
     const r = await fetch('/api/state');
     const s = await r.json();
     if(!r.ok){ throw new Error(s.error || `HTTP ${r.status}`); }
-    document.getElementById('status').textContent = s.status ?? '-';
     document.getElementById('prediction').textContent = s.prediction ?? '-';
-    document.getElementById('confidence').textContent = `${s.confidence ?? 0}`;
+    const conf = Number(s.confidence ?? 0);
+    document.getElementById('confidence').textContent = Number.isFinite(conf) ? conf.toFixed(2) : '0.00';
     document.getElementById('tts').textContent = s.tts ?? '-';
     document.getElementById('transcript').textContent = s.transcript ?? '-';
     document.getElementById('target').textContent = s.target ?? '-';
@@ -410,14 +470,22 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 self.wfile.write(html)
                 return
             if self.path == "/api/state":
-                latest_passed = bool((runtime.last_response or {}).get("passed", False))
+                latest = runtime.last_response or {}
+                latest_passed = bool(latest.get("passed", False))
                 with lock:
                     self._send_json(
                         {
                             "mode": runtime.mode,
                             "status": state.status,
-                            "prediction": "-" if runtime.latest_result is None else runtime.latest_result.label,
-                            "confidence": 0.0 if runtime.latest_result is None else runtime.latest_result.confidence,
+                            # Show ensemble output on the main prediction cards.
+                            "prediction": str(latest.get("label", "-")),
+                            "confidence": float(latest.get("confidence", 0.0)),
+                            # Keep raw head outputs visible for diagnostics.
+                            "stable_label": str(latest.get("stable_label", "nothing")),
+                            "mobilenet_label": "-" if runtime.latest_result is None else runtime.latest_result.label,
+                            "mobilenet_confidence": 0.0 if runtime.latest_result is None else runtime.latest_result.confidence,
+                            "landmark_label": latest.get("landmark_label"),
+                            "landmark_confidence": latest.get("landmark_confidence"),
                             "transcript": runtime.latest_transcript or state.transcript,
                             "letters": state.letters,
                             "target": runtime.learn_target,
