@@ -46,3 +46,7 @@ test/
 
 # Local credentials
 notes/pi_access.md
+
+# Local-only build outputs (May-4 deliverable)
+report/*.pdf
+GestureBridge_*.zip

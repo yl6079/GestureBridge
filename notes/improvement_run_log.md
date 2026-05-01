@@ -171,6 +171,39 @@ C270 camera frames (P4).
   - Latency: **37.6 ms mean / 37.7 ms median** over 10 runs → ~26 FPS,
     well within the demo's real-time budget.
 
+## 2026-05-01 — Report number cross-reference
+
+Every quantitative claim in `report/gesturebrige_acm.tex` traces here:
+
+| Report claim | Source artifact | Value |
+|---|---|---|
+| Original FP32 on leaky split | `artifacts/asl29/eval/holdout_metrics.json` | 1.000 |
+| Original FP32 on contiguous split | `artifacts/asl29/eval/contig_test_metrics_oldmodel.json` | 1.000 |
+| New FP32 (c_u50_d20) honest baseline | `artifacts/asl29/eval/fp32_test_metrics.json` | acc=0.802, macro_f1=0.783 |
+| Landmark MLP (detected only) | `artifacts/asl29/eval/ensemble_metrics.json` | 0.820 (n=4672) |
+| Landmark MLP (full test) | `artifacts/asl29/eval/ensemble_metrics.json` | 0.471 (n=8700) |
+| Ensemble (full test) | `artifacts/asl29/eval/ensemble_metrics.json::ensemble_accuracy` | 0.829 |
+| INT8 (Kaggle-calibrated) | `artifacts/asl29/eval/int8_test_metrics.json` | 0.218 |
+| Sweep c_u15_d20 / c_u30_d20 / c_u50_d20 / c_u30_d30 | vast.ai training log | val 0.799 / 0.874 / 0.886 / 0.870 |
+| Pi inference latency (full path) | Pi smoke test 2026-04-30 | mean 37.6 / median 37.7 ms (n=10) |
+| Pi short-circuit latency (no hand) | Pi smoke test | ~9 ms |
+| Hand-not-detected count on test | `ensemble_metrics.json::no_hand_detected` | 4028 / 8700 |
+| Top confusions X→nothing / T→nothing / Y→L / M→N / J→nothing | `ensemble_metrics.json::top_confusions` | 152 / 112 / 107 / 99 / 96 |
+
+## 2026-05-01 — Yizheng integrated our pipeline + UI polish
+
+Pulled `origin/yizheng@8afa2ca` (3 new commits since `81c5226`):
+- `0cd70d3` (authored Shufeng Chen) — Yizheng cherry-picked our P1 hand-crop
+  + P3 landmark-MLP ensemble onto his branch.
+- `4591774` — Uploaded `esp32_camera.ino` (401 lines) to repo root.
+- `8afa2ca` — Web UI now shows ensemble label + confidence on the prediction
+  cards; sign assets renamed `X1.jpg → X.jpg` for all 29 classes; learn-mode
+  TTS now says only "true"/"false" instead of "letter true"/"letter false".
+
+Merged into `shufeng` as `6b7b7c0`. No conflicts (git auto-resolved the
+asset rename + main_runtime.py changes). `_maybe_ensemble` decision rule
+preserved as-is.
+
 ## Pending
 
 - Yizheng to relaunch the web app and validate with a hand in frame.
