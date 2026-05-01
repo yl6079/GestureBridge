@@ -188,7 +188,8 @@ class MainRuntime:
             passed = stable_label == self.learn_target
             now = monotonic()
             cooldown = self.config.thresholds.tts_repeat_interval_seconds
-            learn_feedback = f"{stable_label} {'true' if passed else 'false'}"
+            # In learn mode, announce only pass/fail feedback.
+            learn_feedback = "true" if passed else "false"
             should_speak_feedback = (
                 learn_feedback != self.last_learn_feedback
                 or now - self.last_learn_feedback_ts >= cooldown
@@ -222,13 +223,13 @@ class MainRuntime:
         sign_assets: list[str] = []
         for letter in letters:
             if letter == "NOTHING":
-                sign_assets.append("nothing1.jpg")
+                sign_assets.append("nothing.jpg")
             elif letter == "SPACE":
-                sign_assets.append("space1.jpg")
+                sign_assets.append("space.jpg")
             elif letter == "DEL":
-                sign_assets.append("del1.jpg")
+                sign_assets.append("del.jpg")
             else:
-                sign_assets.append(f"{letter}1.jpg")
+                sign_assets.append(f"{letter}.jpg")
         return {
             "mode": "speech_to_sign",
             "transcript": transcript,
