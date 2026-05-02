@@ -34,7 +34,8 @@ deployed on a Raspberry Pi~5 with a USB webcam, USB speaker, and an
 ESP32-based ambient sensor for state management.  The system recognizes
 the 29-class ASL alphabet in real time, speaks recognized letters
 through text-to-speech, and supports a \emph{speech-to-sign} learning
-mode driven by browser speech recognition.  Our key contribution is a
+mode driven by fully offline Vosk speech recognition on the C270's
+microphone (no cloud or network dependency at any stage).  Our key contribution is a
 \emph{measurement} contribution: we identify and fix three latent bugs
 in the project's training pipeline---frame-leakage in the train/test
 split, ASL-incorrect horizontal flip augmentation, and missing
@@ -99,7 +100,7 @@ GestureBridge runs three coordinating processes on the Pi~5:
   the inference pipeline at 300\,ms cadence, maintains a
   stable-prediction window, and exposes a FastAPI web UI on
   \texttt{localhost:8080} for \emph{Read} mode (camera + live label +
-  TTS), \emph{Speech-to-sign} mode (browser STT $\to$ reference image),
+  TTS), \emph{Speech-to-sign} mode (offline Vosk STT on the C270 mic $\to$ reference image),
   and \emph{Trainer} mode (target letter + true/false feedback).
 
 \item \textbf{ESP32 firmware} --- drives a PIR sensor, onboard LED, and
@@ -293,6 +294,16 @@ hand-cropper at inference, but \emph{only} because we were willing to
 accept a small first-stage cost (MediaPipe at ${\approx}10\,ms$).  A
 pure end-to-end model would have required collecting C270 training data ---
 a much bigger lift.
+
+A late but consequential design decision was the speech-recognition path.
+Our initial implementation used the browser's Web Speech API, which is
+trivial to wire up but fails the moment the Pi has no internet ---
+exactly the demo condition.  We replaced it with a fully offline Vosk
+small-model pipeline running on the C270's built-in microphone, with a
+two-step record-button UI so the user controls when capture starts.
+The system is now end-to-end offline with no network dependency at any
+stage, which matches the privacy and edge-deployment motivation of the
+project rather than merely paying lip service to it.
 
 %% ---------------------------------------------------------------
 \section{Limitations and Future Work}

@@ -16,7 +16,9 @@ deployed on a Raspberry Pi 5 with a USB webcam, USB speaker, and an
 ESP32-based ambient sensor for state management. The system recognizes
 the 29-class ASL alphabet in real time, speaks recognized letters
 through TTS, and supports a "speech-to-sign" learning mode driven by
-browser STT. Our key contribution is a *measurement* contribution:
+**fully offline Vosk speech recognition** running locally on the C270's
+microphone (no cloud, no internet dependency). Our key contribution is a
+*measurement* contribution:
 we identify and fix three latent bugs in the project's training
 pipeline (frame-leakage in the train/test split, ASL-incorrect
 horizontal flip augmentation, and missing inference-time hand
@@ -65,7 +67,7 @@ GestureBridge runs three coordinating processes on the Pi 5:
    `/dev/video0`, runs the inference pipeline at 300 ms cadence,
    maintains a stable-prediction window, and exposes a FastAPI web UI
    on `localhost:8080` (kiosk-mode browser) for read mode (camera +
-   live label + TTS), speech-to-sign mode (browser STT → reference
+   live label + TTS), speech-to-sign mode (offline Vosk STT on C270 mic → reference
    image), and trainer mode (target letter + true/false feedback).
 3. **ESP32 firmware** (`esp32_camera.ino`) — drives a PIR + onboard
    LED + USB-serial heartbeat; debounced human-on / human-off events.
@@ -235,6 +237,16 @@ a hand-cropper at inference, but **only** because we were willing to
 accept a small first-stage cost (MediaPipe at ~10 ms). A pure
 end-to-end model would have required collecting C270 training data —
 a much bigger lift.
+
+A late but consequential design decision was the speech-recognition path.
+Our initial implementation used the browser's Web Speech API, which is
+trivial to wire up but fails the moment the Pi has no internet — exactly
+the demo condition. We replaced it with a fully offline Vosk small-model
+pipeline running on the C270's built-in microphone, with a two-step
+record-button UI so the user controls when capture starts. The system is
+now end-to-end offline with no network dependency at any stage, which
+matches the privacy and edge-deployment motivation of the project rather
+than merely paying lip service to it.
 
 ## 7. Limitations and future work (~120 words)
 

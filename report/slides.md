@@ -21,7 +21,7 @@ ELEN 6908 · Spring 2026
 - A Pi-5 that **reads ASL letters** from a USB webcam and **speaks them**
 - Three modes in a kiosk web UI:
   - **Read** — camera → ensemble label + confidence on screen → TTS
-  - **Speech-to-sign** — browser STT → reference image
+  - **Speech-to-sign** — offline Vosk STT (C270 mic) → reference image
   - **Trainer** — target letter + spoken "true"/"false" feedback
 - **ESP32** PIR sensor wakes / sleeps the app on its own
 

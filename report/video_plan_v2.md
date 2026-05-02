@@ -8,6 +8,12 @@
 > **Course requirement (verbatim):** the video must (a) demonstrate the system,
 > (b) highlight key challenges, (c) explain important design decisions, in **≤ 3:00**.
 > Q&A is separate (in-class). So this video is **presentation + demo combined**.
+>
+> **Staff update (May 2):** YouTube link (public or unlisted) must be uploaded to
+> the course assignment portal by **11:59 AM Monday May 4**.  *No separate slides
+> are required* — the presentation is now entirely the video. Order of
+> presentations follows team number. Peer voting at end of class (3 votes per
+> team, top 3 get extra credit).
 
 ## Format decision
 

@@ -48,7 +48,7 @@ C270 → MediaPipe HandLandmarker
 
 Web UI (kiosk browser on Pi) has three modes:
 - **Read** — camera → predicted letter → TTS
-- **Speech-to-sign** — browser STT → reference image
+- **Speech-to-sign** — offline Vosk STT (C270 mic) → reference image
 - **Trainer** — target letter + true/false feedback
 
 An ESP32 with a PIR sensor wakes/sleeps the app when someone walks up.
