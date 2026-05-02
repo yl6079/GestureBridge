@@ -26,4 +26,3 @@ fi
 
 echo "No chromium browser found" >&2
 exit 1
-

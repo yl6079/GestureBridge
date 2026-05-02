@@ -307,6 +307,13 @@ button:disabled{opacity:.6;cursor:wait}
         <div class="card" id="card-target"><div class="k">Target</div><div class="v" id="target">-</div></div>
         <div class="card" id="card-passed"><div class="k">Passed</div><div class="v" id="passed">-</div></div>
       </div>
+      <div class="card hidden" id="card-vosk-record">
+        <div class="k">Offline speech (Vosk)</div>
+        <button type="button" id="btn-vosk-toggle" onclick="toggleVoskRecording()">Start recording</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.35">
+          First click starts recording from the device microphone; second click stops, recognizes speech, and shows sign images. Recording stops automatically at the maximum duration.
+        </div>
+      </div>
       <div class="card hidden" id="card-sign-gallery">
         <div class="k">Sign Images</div>
         <div id="signGallery" class="sign-grid"></div>
@@ -322,7 +329,18 @@ let speechRunning = false;
 let speechSupported = false;
 let refreshTimer = null;
 let terminating = false;
+/** Last mode we applied via markActive (layout + speech). Avoid calling markActive every poll — it restarts Web Speech. */
+let lastSyncedMode = null;
+/** When true, onend must not call start() again (e.g. Chromium Web Speech "network" — cloud unreachable). */
+let speechRestartSuppressed = false;
+let voskRecording = false;
 function setHint(msg){ document.getElementById('hint').textContent = msg; }
+function updateVoskButton(){
+  const b = document.getElementById('btn-vosk-toggle');
+  if(!b) return;
+  b.textContent = voskRecording ? 'Stop and recognize' : 'Start recording';
+  b.classList.toggle('active', voskRecording);
+}
 function toSignAssetName(label){
   const text = (label || '').trim();
   if(!text){ return ''; }
@@ -362,6 +380,34 @@ async function shiftLearnTarget(step){
     setHint(`Target switch failed: ${err}`);
   }
 }
+async function toggleVoskRecording(){
+  const btn = document.getElementById('btn-vosk-toggle');
+  if(btn) btn.disabled = true;
+  try{
+    if(!voskRecording){
+      const r = await fetch('/api/speech-vosk/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const data = await r.json();
+      if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
+      voskRecording = true;
+      updateVoskButton();
+      setHint('Recording… Speak, then press Stop and recognize.');
+    }else{
+      const r = await fetch('/api/speech-vosk/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const data = await r.json();
+      if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
+      voskRecording = false;
+      updateVoskButton();
+      document.getElementById('transcript').textContent = data.transcript ?? '-';
+      document.getElementById('letters').textContent = (data.letters||[]).join(' ') || '-';
+      renderSignGallery(data.letters || [], data.sign_assets || []);
+      setHint('Recognition finished.');
+    }
+  }catch(err){
+    setHint(`Offline speech failed: ${err}`);
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
 async function sendSpeech(utterance){
   const r = await fetch('/api/speech',{
     method:'POST',
@@ -378,13 +424,20 @@ function ensureSpeechRecognizer(){
   if(!SpeechRecognition){ return false; }
   speechRecognizer = new SpeechRecognition();
   speechRecognizer.lang = 'en-US';
-  speechRecognizer.continuous = true;
+  speechRecognizer.continuous = false;
   speechRecognizer.interimResults = false;
   speechRecognizer.maxAlternatives = 1;
   speechRecognizer.onresult = async (event)=>{
-    const transcript = event.results[event.results.length - 1][0].transcript || '';
-    const cleaned = transcript.trim();
+    let combined = '';
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const res = event.results[i];
+      if(!res.isFinal) continue;
+      const t = (res[0] && res[0].transcript) ? String(res[0].transcript).trim() : '';
+      if(t){ combined = combined ? `${combined} ${t}` : t; }
+    }
+    const cleaned = combined.trim();
     if(!cleaned){ return; }
+    speechRestartSuppressed = false;
     setHint(`Heard: ${cleaned}`);
     try{
       const resp = await sendSpeech(cleaned);
@@ -396,13 +449,22 @@ function ensureSpeechRecognizer(){
     }
   };
   speechRecognizer.onerror = (event)=>{
-    setHint(`Speech error: ${event.error}`);
+    if(event.error === 'network'){
+      speechRestartSuppressed = true;
+      setHint('Speech-to-text failed: network (Chromium cannot reach the cloud speech service). Check outbound HTTPS/DNS or try another network. Switch mode away and back to retry.');
+    }else{
+      setHint(`Speech error: ${event.error}`);
+    }
   };
   speechRecognizer.onend = ()=>{
     speechRunning = false;
-    if(document.getElementById('currentMode').textContent.includes('speech_to_sign')){
-      startSpeechRecognition();
+    if(!document.getElementById('currentMode').textContent.includes('speech_to_sign')){
+      return;
     }
+    if(speechRestartSuppressed){
+      return;
+    }
+    startSpeechRecognition();
   };
   speechSupported = true;
   return true;
@@ -412,7 +474,9 @@ function startSpeechRecognition(){
     setHint('Speech recognition is not supported in this browser.');
     return;
   }
-  if(speechRunning){ return; }
+  if(speechRunning){
+    return;
+  }
   try{
     speechRecognizer.start();
     speechRunning = true;
@@ -468,12 +532,14 @@ function applyModeLayout(mode){
     toggleCard('card-target', false);
     toggleCard('card-passed', false);
     toggleCard('card-learn-target-display', false);
+    toggleCard('card-vosk-record', false);
     return;
   }
   if(mode === 'speech_to_sign'){
     toggleCard('preview-shell', false);
     toggleCard('card-prediction', false);
     toggleCard('card-confidence', false);
+    toggleCard('card-vosk-record', true);
     toggleCard('card-sign-gallery', true);
     toggleCard('card-tts', false);
     toggleCard('card-transcript', true);
@@ -494,6 +560,7 @@ function applyModeLayout(mode){
     toggleCard('card-target', true);
     toggleCard('card-passed', true);
     toggleCard('card-learn-target-display', true);
+    toggleCard('card-vosk-record', false);
     return;
   }
   toggleCard('preview-shell', true);
@@ -506,6 +573,7 @@ function applyModeLayout(mode){
   toggleCard('card-target', true);
   toggleCard('card-passed', true);
   toggleCard('card-learn-target-display', false);
+  toggleCard('card-vosk-record', false);
 }
 function markActive(mode){
   ['read','speech_to_sign','learn'].forEach((m)=>{
@@ -521,7 +589,11 @@ function markActive(mode){
     if(preview){ preview.src = `/video.jpg?t=${Date.now()}`; }
   }
   if(mode === 'speech_to_sign'){
-    startSpeechRecognition();
+    speechRestartSuppressed = true;
+    stopSpeechRecognition();
+    voskRecording = false;
+    updateVoskButton();
+    setHint('Press Start recording to capture speech with the device microphone (offline Vosk).');
   }else{
     stopSpeechRecognition();
   }
@@ -550,11 +622,17 @@ async function setMode(mode){
     const r = await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
     const data = await r.json();
     if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
-    markActive(data.mode || mode);
-    if((data.mode || mode) !== 'speech_to_sign'){
+    const applied = data.mode || mode;
+    markActive(applied);
+    lastSyncedMode = applied;
+    if(applied !== 'speech_to_sign'){
       renderSignGallery([], []);
     }
-    setHint(`Mode switched to ${data.mode || mode}.`);
+    if(applied === 'speech_to_sign'){
+      setHint('Press Start recording to capture speech with the device microphone (offline Vosk).');
+    }else{
+      setHint(`Mode switched to ${applied}.`);
+    }
   }catch(err){
     setHint(`Mode switch failed: ${err}`);
   }finally{
@@ -578,7 +656,28 @@ async function refresh(){
     document.getElementById('passed').textContent = `${s.passed ?? '-'}`;
     document.getElementById('letters').textContent = (s.letters||[]).join(' ') || '-';
     renderSignGallery(s.letters || [], s.sign_assets || []);
-    if(s.mode){ markActive(s.mode); }
+    if(typeof s.vosk_recording === 'boolean'){
+      voskRecording = s.vosk_recording;
+      updateVoskButton();
+    }
+    const vn = s.vosk_notification;
+    if(vn){
+      if(vn.ok && vn.result){
+        const resp = vn.result;
+        document.getElementById('transcript').textContent = resp.transcript ?? '-';
+        document.getElementById('letters').textContent = (resp.letters||[]).join(' ') || '-';
+        renderSignGallery(resp.letters || [], resp.sign_assets || []);
+        setHint(vn.autostop ? 'Recording stopped (maximum duration). Recognition finished.' : 'Recognition finished.');
+      }else if(!vn.ok){
+        setHint(`Offline speech: ${vn.error || 'failed'}`);
+      }
+      voskRecording = false;
+      updateVoskButton();
+    }
+    if(s.mode && s.mode !== lastSyncedMode){
+      markActive(s.mode);
+      lastSyncedMode = s.mode;
+    }
     if((s.mode || '') !== 'speech_to_sign'){
       const preview = document.getElementById('preview');
       preview.src = `/video.jpg?t=${Date.now()}`;
@@ -632,11 +731,17 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                             "landmark_label": latest.get("landmark_label"),
                             "landmark_confidence": latest.get("landmark_confidence"),
                             "transcript": runtime.latest_transcript or state.transcript,
-                            "letters": state.letters,
+                            "letters": runtime.latest_speech_letters
+                            if runtime.latest_speech_letters
+                            else state.letters,
                             "target": runtime.learn_target,
                             "passed": latest_passed if runtime.mode == "learn" else state.passed,
                             "tts": runtime.latest_tts,
-                            "sign_assets": state.sign_assets,
+                            "sign_assets": runtime.latest_sign_assets
+                            if runtime.latest_sign_assets
+                            else state.sign_assets,
+                            "vosk_recording": runtime.is_vosk_recording(),
+                            "vosk_notification": runtime.take_vosk_notification(),
                         }
                     )
                 return
@@ -699,6 +804,35 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 payload = json.loads(self.rfile.read(length) or b"{}")
                 utterance = str(payload.get("utterance", ""))
                 result = runtime.run_speech_to_sign(utterance)
+                with lock:
+                    state.transcript = str(result["transcript"])
+                    state.letters = list(result["letters"])
+                    state.sign_assets = list(result.get("sign_assets", []))
+                    state.status = "active"
+                self._send_json(result)
+                return
+
+            if self.path == "/api/speech-vosk/start":
+                try:
+                    runtime.start_vosk_recording()
+                except RuntimeError as exc:
+                    self._send_json({"error": str(exc)}, status=409)
+                    return
+                except Exception as exc:
+                    self._send_json({"error": str(exc)}, status=500)
+                    return
+                self._send_json({"ok": True, "recording": True})
+                return
+
+            if self.path == "/api/speech-vosk/stop":
+                try:
+                    result = runtime.stop_vosk_recording_and_run_speech_to_sign()
+                except RuntimeError as exc:
+                    self._send_json({"error": str(exc)}, status=400)
+                    return
+                except Exception as exc:
+                    self._send_json({"error": str(exc)}, status=500)
+                    return
                 with lock:
                     state.transcript = str(result["transcript"])
                     state.letters = list(result["letters"])

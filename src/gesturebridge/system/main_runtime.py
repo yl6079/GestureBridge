@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 import os
+import threading
 from time import monotonic, sleep
 import re
 
@@ -10,9 +11,28 @@ import cv2
 import numpy as np
 
 from gesturebridge.config import SystemConfig
+from gesturebridge.system.mic_default import prefer_c270_default_mic
 from gesturebridge.pipelines.asl29_tflite import ASL29TFLiteRuntime, InferenceResult
 from gesturebridge.pipelines.asr import OfflineASR
 from gesturebridge.pipelines.tts import TTSOutput
+
+
+def _resample_pcm16_mono(pcm: bytes, src_sr: int, dst_sr: int) -> bytes:
+    """Linear resample of int16 mono PCM (numpy only; avoids scipy)."""
+    if src_sr == dst_sr or not pcm:
+        return pcm
+    x = np.frombuffer(pcm, dtype=np.int16).astype(np.float64)
+    n_src = int(x.shape[0])
+    n_dst = max(1, int(round(n_src * (dst_sr / src_sr))))
+    if n_src <= 1:
+        return pcm
+    t_end = n_src / float(src_sr)
+    t_src = np.linspace(0.0, t_end, num=n_src, endpoint=False)
+    t_dst = np.linspace(0.0, t_end, num=n_dst, endpoint=False)
+    y = np.interp(t_dst, t_src, x)
+    y = np.clip(np.round(y), -32768, 32767).astype(np.int16)
+    return y.tobytes()
+
 
 NATO_TO_LETTER: dict[str, str] = {
     "alpha": "A",
@@ -60,6 +80,8 @@ class MainRuntime:
     latest_result: InferenceResult | None = None
     latest_tts: str = ""
     latest_transcript: str = ""
+    latest_speech_letters: list[str] = field(default_factory=list)
+    latest_sign_assets: list[str] = field(default_factory=list)
     learn_target: str = "A"
     learn_target_idx: int = 0
     latest_frame_jpeg: bytes = b""
@@ -69,6 +91,161 @@ class MainRuntime:
     last_response: dict[str, object] | None = None
     last_learn_feedback: str = ""
     last_learn_feedback_ts: float = 0.0
+    _vosk_stt: object | None = field(default=None, init=False, repr=False)
+    _vosk_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _vosk_recording: bool = field(default=False, init=False, repr=False)
+    _vosk_buffer: bytearray = field(default_factory=bytearray, init=False, repr=False)
+    _vosk_stream: object | None = field(default=None, init=False, repr=False)
+    _vosk_max_timer: threading.Timer | None = field(default=None, init=False, repr=False)
+    _vosk_notification: dict[str, object] | None = field(default=None, init=False, repr=False)
+    _vosk_capture_sr: int = field(default=16000, init=False, repr=False)
+
+    @staticmethod
+    def _prefer_real_mic_device_index(sd) -> int | None:
+        """Pick capture device. Prefer PulseAudio virtual device so routing matches `pactl` default.
+
+        Direct ALSA `hw:` / USB names can yield all-zero PCM when PipeWire/Pulse owns the device,
+        while `pactl set-default-source` only affects apps that record through Pulse.
+        """
+        import os
+
+        devices = sd.query_devices()
+
+        def input_pairs():
+            for i, d in enumerate(devices):
+                if int(d.get("max_input_channels", 0) or 0) < 1:
+                    continue
+                yield i, str(d.get("name", ""))
+
+        if os.environ.get("GESTUREBRIDGE_VOSK_SKIP_PULSE", "").strip() not in ("1", "true", "yes"):
+            for i, name in input_pairs():
+                nl = name.lower()
+                if nl == "pulse" or nl.startswith("pulse:") or "pulseaudio" in nl:
+                    return i
+            for i, name in input_pairs():
+                nl = name.lower()
+                if "pipewire" in nl and "midi" not in nl:
+                    return i
+
+        # Prefer specific names before generic "usb" — logs showed index 0 "USB2.0 Device" matched
+        # substring "usb" in "usb2.0" before Logitech C270 appeared later in the list (all-zero PCM).
+        keywords_ordered = (
+            "c270",
+            "046d",
+            "c925",
+            "logitech",
+            "logi",
+            "hd webcam",
+            "webcam",
+            "headset",
+            "usb audio",
+            "microphone",
+            "mic",
+            "usb",
+        )
+        for kw in keywords_ordered:
+            for i, name in input_pairs():
+                nl = name.lower()
+                if "hdmi" in nl and "monitor" not in nl:
+                    continue
+                if kw in nl:
+                    return i
+        for i, name in input_pairs():
+            nl = name.lower()
+            if "hdmi" in nl:
+                continue
+            return i
+        return None
+
+    @staticmethod
+    def _find_pulse_or_pipewire_input_index(sd) -> int | None:
+        """PortAudio may omit the substring 'pulse' in device names; match host API too."""
+        try:
+            apis = sd.query_hostapis()
+        except Exception:
+            apis = ()
+        for i, d in enumerate(sd.query_devices()):
+            if int(d.get("max_input_channels", 0) or 0) < 1:
+                continue
+            name_l = str(d.get("name", "")).lower()
+            if "pulse" in name_l or "pulseaudio" in name_l:
+                return i
+            try:
+                hi = int(d.get("hostapi", -1))
+                if 0 <= hi < len(apis):
+                    aname = str(apis[hi].get("name", "")).lower()
+                    if "pulse" in aname or "pipewire" in aname:
+                        return i
+            except (TypeError, ValueError, KeyError):
+                continue
+        return None
+
+    def _resolve_vosk_input_device(self):
+        """PortAudio device index or None for library default."""
+        import os
+
+        import sounddevice as sd
+
+        raw_env = os.environ.get("GESTUREBRIDGE_VOSK_INPUT_DEVICE", "").strip()
+        choice: str | int | None
+        if raw_env:
+            choice = raw_env
+        else:
+            choice = self.config.vosk.input_device
+
+        if choice is None or (isinstance(choice, str) and not str(choice).strip()):
+            return self._prefer_real_mic_device_index(sd)
+
+        if isinstance(choice, int):
+            return choice
+        s = str(choice).strip()
+        if s.isdigit():
+            return int(s)
+        needle = s.lower()
+        for i, d in enumerate(sd.query_devices()):
+            if int(d.get("max_input_channels", 0) or 0) < 1:
+                continue
+            if needle in str(d.get("name", "")).lower():
+                return i
+        if needle == "pulse":
+            idx = self._find_pulse_or_pipewire_input_index(sd)
+            if idx is not None:
+                return idx
+            print(
+                "[gesturebridge] GESTUREBRIDGE_VOSK_INPUT_DEVICE=pulse: no Pulse/PipeWire capture device "
+                "in PortAudio's list; falling back to automatic device selection. "
+                "Unset this env if you did not mean to override.",
+                flush=True,
+            )
+            return self._prefer_real_mic_device_index(sd)
+        raise RuntimeError(
+            f"No input device name contains {choice!r}. "
+            'Try: python -c "import sounddevice as sd; print(sd.query_devices())"'
+        )
+
+    def _pick_input_samplerate(self, device: int | str | None) -> int:
+        """Use 16 kHz when supported; else device default / common rates (USB mics often lack 16 kHz)."""
+        import sounddevice as sd
+
+        try:
+            if device is None:
+                dev = sd.query_devices(kind="input")
+            else:
+                dev = sd.query_devices(device)
+        except Exception:
+            dev = sd.query_devices(sd.default.device[0])
+        native = int(round(float(dev.get("default_samplerate", 48000))))
+        candidates: list[int] = []
+        for sr in (16000, native, 48000, 44100, 32000, 22050):
+            if sr not in candidates:
+                candidates.append(sr)
+        for sr in candidates:
+            try:
+                sd.check_input_settings(device=device, channels=1, dtype="int16", samplerate=sr)
+                return sr
+            except Exception:
+                continue
+        return native
 
     def _set_placeholder_frame(self, title: str, subtitle: str = "") -> None:
         canvas = np.zeros((self.config.asl29.runtime.webcam_height, self.config.asl29.runtime.webcam_width, 3), dtype=np.uint8)
@@ -88,6 +265,8 @@ class MainRuntime:
     def set_mode(self, mode: str) -> str:
         if mode not in {"read", "speech_to_sign", "learn"}:
             return self.mode
+        if self.mode == "speech_to_sign" and mode != "speech_to_sign":
+            self.abort_vosk_recording()
         self.mode = mode
         self.touch()
         if mode == "learn":
@@ -98,7 +277,11 @@ class MainRuntime:
                     self.learn_target_idx = self.infer.labels.index(self.learn_target)
                 self.learn_target = self.infer.labels[self.learn_target_idx]
         if mode == "speech_to_sign":
-            self._set_placeholder_frame("Speech to Sign", "Listening mode (no camera inference)")
+            prefer_c270_default_mic()
+            self._set_placeholder_frame(
+                "Speech to Sign",
+                "Device microphone — use Start recording in the UI (offline Vosk)",
+            )
         return self.mode
 
     def shift_learn_target(self, step: int) -> str:
@@ -208,7 +391,13 @@ class MainRuntime:
         return self.latest_frame_jpeg
 
     def run_speech_to_sign(self, utterance: str) -> dict[str, object]:
-        transcript = self.asr.transcribe(utterance)
+        try:
+            transcript = self.asr.transcribe(utterance)
+        except ValueError as exc:
+            # OfflineASR rejects empty/whitespace-only input; Vosk often returns "" for silence/no match.
+            if "ASR_FAILURE" not in str(exc):
+                raise
+            transcript = ""
         self.latest_transcript = transcript
         self.touch()
         tokens = [tok for tok in re.split(r"\s+", transcript.strip().lower()) if tok]
@@ -221,6 +410,7 @@ class MainRuntime:
         if not letters:
             letters = ["NOTHING"]
         sign_assets: list[str] = []
+        self.latest_speech_letters = list(letters)
         for letter in letters:
             if letter == "NOTHING":
                 sign_assets.append("nothing.jpg")
@@ -230,12 +420,138 @@ class MainRuntime:
                 sign_assets.append("del.jpg")
             else:
                 sign_assets.append(f"{letter}.jpg")
+        self.latest_sign_assets = list(sign_assets)
         return {
             "mode": "speech_to_sign",
             "transcript": transcript,
             "letters": letters,
             "sign_assets": sign_assets,
         }
+
+    def _get_or_create_vosk_stt(self):
+        if self._vosk_stt is None:
+            from gesturebridge.pipelines.vosk_stt import VoskSTT
+
+            self._vosk_stt = VoskSTT(self.config.vosk.model_dir.resolve())
+        return self._vosk_stt
+
+    def is_vosk_recording(self) -> bool:
+        with self._vosk_lock:
+            return self._vosk_recording
+
+    def take_vosk_notification(self) -> dict[str, object] | None:
+        with self._vosk_lock:
+            n = self._vosk_notification
+            self._vosk_notification = None
+            return n
+
+    def abort_vosk_recording(self) -> None:
+        """Stop the microphone stream without transcription (e.g. mode switch)."""
+        with self._vosk_lock:
+            if not self._vosk_recording:
+                return
+            if self._vosk_max_timer is not None:
+                self._vosk_max_timer.cancel()
+                self._vosk_max_timer = None
+            stream = self._vosk_stream
+            self._vosk_stream = None
+        if stream is not None:
+            stream.stop()
+            stream.close()
+        with self._vosk_lock:
+            self._vosk_recording = False
+        self._vosk_buffer.clear()
+
+    def start_vosk_recording(self) -> None:
+        prefer_c270_default_mic()
+        self._get_or_create_vosk_stt()
+        import sounddevice as sd
+
+        device = self._resolve_vosk_input_device()
+        capture_sr = self._pick_input_samplerate(device)
+
+        def callback(indata, _frames, _time_info, status) -> None:
+            chunk = memoryview(indata).tobytes()
+            with self._vosk_lock:
+                if not self._vosk_recording:
+                    return
+                self._vosk_buffer.extend(chunk)
+
+        with self._vosk_lock:
+            if self._vosk_recording:
+                raise RuntimeError("Already recording.")
+            self._vosk_buffer.clear()
+            self._vosk_capture_sr = capture_sr
+            self._vosk_recording = True
+            try:
+                stream = sd.InputStream(
+                    device=device,
+                    samplerate=capture_sr,
+                    channels=1,
+                    dtype="int16",
+                    callback=callback,
+                    blocksize=4096,
+                )
+                stream.start()
+                self._vosk_stream = stream
+            except Exception:
+                self._vosk_recording = False
+                self._vosk_capture_sr = int(self.config.vosk.sample_rate)
+                raise
+
+        max_sec = max(0.0, float(self.config.vosk.max_record_sec))
+        if max_sec > 0:
+            self._vosk_max_timer = threading.Timer(max_sec, self._vosk_auto_stop)
+            self._vosk_max_timer.daemon = True
+            self._vosk_max_timer.start()
+
+    def _vosk_auto_stop(self) -> None:
+        with self._vosk_lock:
+            if not self._vosk_recording:
+                return
+        try:
+            result = self.stop_vosk_recording_and_run_speech_to_sign()
+            with self._vosk_lock:
+                self._vosk_notification = {"ok": True, "autostop": True, "result": result}
+        except RuntimeError:
+            pass
+        except Exception as exc:
+            with self._vosk_lock:
+                self._vosk_notification = {"ok": False, "error": str(exc), "autostop": True}
+
+    def stop_vosk_recording_and_run_speech_to_sign(self) -> dict[str, object]:
+        with self._vosk_lock:
+            if not self._vosk_recording:
+                raise RuntimeError("Not recording.")
+            if self._vosk_max_timer is not None:
+                self._vosk_max_timer.cancel()
+                self._vosk_max_timer = None
+            stream = self._vosk_stream
+            self._vosk_stream = None
+        if stream is not None:
+            stream.stop()
+            stream.close()
+        with self._vosk_lock:
+            self._vosk_recording = False
+        pcm = bytes(self._vosk_buffer)
+        self._vosk_buffer.clear()
+        if not pcm:
+            raise RuntimeError("No audio captured.")
+        arr = np.frombuffer(pcm, dtype=np.int16)
+        peak_capture = int(np.max(np.abs(arr.astype(np.int64)))) if arr.size else 0
+        if peak_capture == 0:
+            print(
+                "[gesturebridge] Vosk capture was silent (all samples zero). "
+                "If `pactl` already shows the right mic, PortAudio may be using ALSA directly — "
+                "try GESTUREBRIDGE_VOSK_INPUT_DEVICE=pulse or pick index from "
+                '`python -c "import sounddevice as sd; print(sd.query_devices())"`.',
+                flush=True,
+            )
+        target_sr = int(self.config.vosk.sample_rate)
+        pcm16k = _resample_pcm16_mono(pcm, self._vosk_capture_sr, target_sr)
+        stt = self._get_or_create_vosk_stt()
+        text = stt.transcribe_pcm16_mono(pcm16k, target_sr)
+        return self.run_speech_to_sign(text)
 
     def run_camera_loop(self) -> None:
         cap = None
@@ -250,7 +566,10 @@ class MainRuntime:
                         cap.release()
                         cap = None
                     if not self.latest_frame_jpeg:
-                        self._set_placeholder_frame("Speech to Sign", "Listening mode (no camera inference)")
+                        self._set_placeholder_frame(
+                            "Speech to Sign",
+                            "Device microphone — use Start recording in the UI (offline Vosk)",
+                        )
                     sleep(0.05)
                     continue
 

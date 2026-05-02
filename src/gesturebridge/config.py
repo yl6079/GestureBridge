@@ -142,6 +142,18 @@ class WebUIConfig:
 
 
 @dataclass(slots=True)
+class VoskConfig:
+    """Offline speech-to-text (Vosk small English). Download model to model_dir (see scripts/fetch_vosk_small.sh)."""
+
+    model_dir: Path = Path("artifacts/vosk/vosk-model-small-en-us-0.15")
+    sample_rate: int = 16000
+    max_record_sec: float = 60.0
+    #: PortAudio input: None = auto (prefer USB/webcam mic over silent defaults). Int = device index.
+    #: Str = substring match on device name. Env GESTUREBRIDGE_VOSK_INPUT_DEVICE overrides when set.
+    input_device: str | int | None = None
+
+
+@dataclass(slots=True)
 class ASL29Config:
     num_classes: int = 29
     class_names: tuple[str, ...] = tuple(
@@ -163,3 +175,4 @@ class SystemConfig:
     serial: SerialConfig = field(default_factory=SerialConfig)
     daemon: DaemonConfig = field(default_factory=DaemonConfig)
     web: WebUIConfig = field(default_factory=WebUIConfig)
+    vosk: VoskConfig = field(default_factory=VoskConfig)

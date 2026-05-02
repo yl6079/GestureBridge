@@ -14,6 +14,7 @@ from gesturebridge.bootstrap import build_controller
 from gesturebridge.config import SystemConfig
 from gesturebridge.devices.xiao import parse_serial_line
 from gesturebridge.system.daemon import StandbyDaemon
+from gesturebridge.system.mic_default import prefer_c270_default_mic
 
 
 def run_demo() -> None:
@@ -27,22 +28,6 @@ def run_demo() -> None:
     print("Learn teaching:", controller.run_learn_teaching(sample_frame, target_sign_id=0))
     print("Learn practice:", controller.run_learn_practice(sample_frame, target_sign_id=1))
     print("Housekeeping:", controller.housekeeping())
-
-
-def _prefer_c270_default_mic() -> None:
-    """Set PulseAudio default source to C270 webcam mic (Linux). Best-effort."""
-    if sys.platform != "linux":
-        return
-    script = Path(__file__).resolve().parent
-    root = script.parents[2]
-    candidates = [root / "scripts" / "set_default_mic_c270.sh", Path.cwd() / "scripts" / "set_default_mic_c270.sh"]
-    path = next((p for p in candidates if p.is_file()), None)
-    if path is None:
-        return
-    try:
-        subprocess.run(["/bin/bash", str(path)], check=False, timeout=8)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
 
 
 def _open_local_ui(url: str, kiosk_mode: bool) -> None:
@@ -169,7 +154,7 @@ def main() -> None:
             ui_state.letters = list(result["letters"])
 
         print(f"Web UI: {cfg.web.kiosk_url}")
-        _prefer_c270_default_mic()
+        prefer_c270_default_mic()
         if cfg.web.auto_open_browser:
             _open_local_ui(cfg.web.kiosk_url, kiosk_mode=cfg.web.kiosk_mode)
         try:
