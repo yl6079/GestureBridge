@@ -34,15 +34,15 @@ deployed on a Raspberry Pi~5 with a USB webcam, USB speaker, and an
 ESP32-based ambient sensor for state management.  The system recognizes
 the 29-class ASL alphabet in real time, speaks recognized letters
 through text-to-speech, and supports a \emph{speech-to-sign} learning
-mode driven by fully offline Vosk speech recognition on the C270's
+mode driven by fully offline Vosk~\cite{vosk} speech recognition on the C270's
 microphone (no cloud or network dependency at any stage).  Our key contribution is a
 \emph{measurement} contribution: we identify and fix three latent bugs
 in the project's training pipeline---frame-leakage in the train/test
 split, ASL-incorrect horizontal flip augmentation, and missing
 inference-time hand preprocessing---that masked a 20-point gap between
 reported accuracy (100\,\%) and honest test accuracy (80\,\%).  After
-the fixes, an ensemble of a fine-tuned MobileNetV3-Small and a
-63-dimensional MediaPipe-landmark MLP achieves \textbf{82.9\,\%} on a
+the fixes, an ensemble of a fine-tuned MobileNetV3-Small~\cite{howard2019mobilenetv3} and a
+63-dimensional MediaPipe-landmark~\cite{zhang2020mediapipehands} MLP achieves \textbf{82.9\,\%} on a
 leakage-free test split at \textbf{37.6\,ms per frame} on a Pi~5.
 \end{abstract}
 
@@ -66,7 +66,7 @@ MediaPipe, MobileNetV3, TFLite}
 ASL recognition for educational and accessibility use cases is
 appealing on the Pi because the hardware is cheap, fanless, and
 HDMI-out makes deployment trivial.  Off-the-shelf datasets (notably the
-Kaggle ``ASL Alphabet'' set with ${\approx}87$k images across 29
+Kaggle ``ASL Alphabet''~\cite{kaggleasl} set with ${\approx}87$k images across 29
 classes) make a working classifier achievable within a course timeline.
 \emph{The pernicious failure mode}, which our investigation surfaces,
 is that naive use of these datasets produces a model that scores
@@ -165,7 +165,7 @@ required.
 
 \subsection{Inference-Time Hand Crop with MediaPipe (P1)}
 
-We insert a MediaPipe HandLandmarker (Tasks API,
+We insert a MediaPipe HandLandmarker~\cite{lugaresi2019mediapipe,zhang2020mediapipehands} (Tasks API,
 \texttt{hand\_landmarker.task}, 7.5\,MB) before the MobileNet input.
 When a hand is detected, we crop a square ROI around the landmarks
 bounding box with 25\,\% padding and resize to 224${\times}$224.  When
@@ -202,14 +202,14 @@ c\_u30\_d30 & 30  & 0.3 & 0.870 \\
 \end{tabular}
 \end{table}
 
-The winner (\texttt{c\_u50\_d20}) was exported to FP32 TFLite (3.7\,MB)
+The winner (\texttt{c\_u50\_d20}) was exported to FP32 TFLite~\cite{tflite} (3.7\,MB)
 and INT8 TFLite (1.2\,MB).
 
 \subsection{Landmark MLP and Ensemble (P3)}
 
 ASL is intrinsically geometric, so we train a second classifier on the
 21${\times}$3 MediaPipe landmark vector (wrist-centered,
-scale-normalized $\to$ 63-d).  A scikit-learn MLP with hidden layers
+scale-normalized $\to$ 63-d).  A scikit-learn~\cite{sklearn} MLP with hidden layers
 (256, 128) and ReLU activations trains in $<$2 minutes on a CPU.
 Weights are exported to a 199\,KB \texttt{.npz} so the Pi runtime
 requires only NumPy (no extra TF).
@@ -371,5 +371,57 @@ Code: \url{https://github.com/yl6079/GestureBridge} (branch \texttt{shufeng}).
 Raspberry Pi~5 (8\,GB) $\cdot$ Logitech C270 USB webcam $\cdot$ generic USB
 speaker $\cdot$ ESP32-WROOM-32 with HC-SR501 PIR $\cdot$ 7\,'' HDMI LCD,
 all powered from the Pi's USB-C PSU.
+
+%% ---------------------------------------------------------------
+%% References
+%% ---------------------------------------------------------------
+\begin{thebibliography}{9}
+
+\bibitem{howard2019mobilenetv3}
+A.~Howard \emph{et al.},
+\newblock ``Searching for MobileNetV3,''
+\newblock in \emph{Proc. IEEE/CVF Int. Conf. Computer Vision (ICCV)}, 2019,
+  pp. 1314--1324.
+
+\bibitem{lugaresi2019mediapipe}
+C.~Lugaresi \emph{et al.},
+\newblock ``MediaPipe: A framework for building perception pipelines,''
+\newblock arXiv preprint arXiv:1906.08172, 2019.
+
+\bibitem{zhang2020mediapipehands}
+F.~Zhang \emph{et al.},
+\newblock ``MediaPipe Hands: On-device real-time hand tracking,''
+\newblock arXiv preprint arXiv:2006.10214, 2020.
+
+\bibitem{kaggleasl}
+Akash (``grassknoted''),
+\newblock ``ASL Alphabet,''
+\newblock Kaggle dataset, 2018.
+  \url{https://www.kaggle.com/datasets/grassknoted/asl-alphabet}.
+
+\bibitem{vosk}
+Alpha Cephei,
+\newblock ``Vosk Speech Recognition Toolkit,''
+\newblock 2024.
+  \url{https://alphacephei.com/vosk/}.
+
+\bibitem{tflite}
+Google,
+\newblock ``TensorFlow Lite / LiteRT,''
+\newblock 2024.
+  \url{https://ai.google.dev/edge/litert}.
+
+\bibitem{sklearn}
+F.~Pedregosa \emph{et al.},
+\newblock ``Scikit-learn: Machine learning in Python,''
+\newblock \emph{J. Mach. Learn. Res.}, vol. 12, pp. 2825--2830, 2011.
+
+\bibitem{kornblith2019do}
+S.~Kornblith, J.~Shlens, and Q.~V. Le,
+\newblock ``Do better ImageNet models transfer better?''
+\newblock in \emph{Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition
+  (CVPR)}, 2019, pp. 2661--2671.
+
+\end{thebibliography}
 
 \end{document}
