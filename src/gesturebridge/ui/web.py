@@ -1,12 +1,32 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Lock
+from pathlib import Path
+from threading import Lock, Thread
+from time import sleep
 from typing import Any
 
 from gesturebridge.system.main_runtime import MainRuntime
+
+
+def _trigger_shutdown(kill_parent: bool = True) -> None:
+    """Background helper used by the /api/shutdown endpoint."""
+    sleep(0.25)
+    if kill_parent:
+        try:
+            ppid = os.getppid()
+            cmdline_path = Path(f"/proc/{ppid}/cmdline")
+            if cmdline_path.exists():
+                raw = cmdline_path.read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+                if "gesturebridge" in raw and "--run-daemon" in raw:
+                    os.kill(ppid, signal.SIGTERM)
+        except Exception:
+            pass
+    os._exit(0)
 
 
 @dataclass(slots=True)
@@ -25,7 +45,9 @@ class UIState:
 
 def _index_html() -> str:
     return """<!doctype html>
-<html><head><meta charset="utf-8"><title>GestureBridge</title>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GestureBridge</title>
 <style>
 *{box-sizing:border-box}
 :root{
@@ -56,8 +78,8 @@ body{
   margin-bottom:10px;
   gap:12px;
 }
-.title{font-size:30px;font-weight:760;letter-spacing:.2px}
-.subtitle{font-size:13px;color:var(--muted);margin-top:3px}
+.title{font-size:30px;font-weight:760;letter-spacing:.2px;line-height:1.1}
+.subtitle{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.25}
 .badge{
   font-size:13px;padding:8px 13px;border-radius:999px;
   background:linear-gradient(135deg,rgba(79,140,255,.24),rgba(124,92,255,.2));
@@ -65,19 +87,30 @@ body{
   color:#d8e5ff;
   box-shadow:0 8px 24px rgba(0,0,0,.22);
 }
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 8px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 8px;align-items:center}
 button{
   padding:11px 14px;border-radius:10px;border:1px solid var(--border);
   background:linear-gradient(180deg,rgba(24,38,67,.9),rgba(17,29,53,.92));
   color:var(--text);cursor:pointer;
   transition:all .15s ease;
   font-weight:600;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
 }
 button:hover{transform:translateY(-1px);border-color:#4d6697;background:#1a2b4e}
 button.active{
   background:linear-gradient(135deg,var(--accent),var(--accent-2));
   border-color:transparent;color:#fff;
   box-shadow:0 8px 20px rgba(79,140,255,.35);
+}
+button.danger{
+  background:linear-gradient(135deg,#e3433d,#b81c2a);
+  border-color:transparent;color:#fff;
+  box-shadow:0 8px 20px rgba(227,67,61,.35);
+}
+button.danger:hover{
+  background:linear-gradient(135deg,#ef5852,#cd2533);
+  border-color:transparent;
 }
 button:disabled{opacity:.6;cursor:wait}
 .grid{
@@ -96,14 +129,45 @@ button:disabled{opacity:.6;cursor:wait}
   box-shadow:0 10px 30px rgba(1,8,20,.28);
 }
 .hidden{display:none}
-.preview{
-  width:100%;
+.stage{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-top:2px;
+}
+.side-panel{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0;
+}
+.side-panel .grid{margin-top:0}
+.preview-shell{
   border-radius:14px;
   border:1px solid var(--border);
   background:#000;
-  min-height:260px;
-  object-fit:cover;
+  overflow:hidden;
   box-shadow:0 10px 30px rgba(1,8,20,.45);
+  width:100%;
+  max-width:min(1040px,100%);
+  margin-inline:auto;
+  flex-shrink:0;
+  line-height:0;
+}
+.preview-shell .preview{
+  display:block;
+  margin:0 auto;
+  width:auto;
+  max-width:100%;
+  height:auto;
+  max-height:min(85dvh,calc(100vw - 36px));
+  border-radius:0;
+  border:none;
+  box-shadow:none;
+}
+.learn-target-img{
+  width:160px;max-width:38vw;max-height:140px;object-fit:contain;
+  border-radius:10px;background:#0b1220;border:1px solid #334155;
 }
 .sign-grid{
   display:grid;
@@ -149,6 +213,63 @@ button:disabled{opacity:.6;cursor:wait}
   button{padding:10px 12px}
   .v{font-size:18px}
 }
+@media (max-height:540px),(max-width:820px){
+  :root{
+    --stage-vh:calc(100dvh - 108px);
+  }
+  body{min-height:100%;overflow-x:hidden}
+  .wrap{margin:6px auto 8px;padding:0 8px;max-width:100%}
+  .topbar{flex-wrap:wrap;margin-bottom:4px;gap:6px}
+  .title{font-size:17px}
+  .subtitle{font-size:10px;margin-top:1px}
+  .badge{font-size:10px;padding:4px 8px;flex-shrink:0}
+  .toolbar{margin:6px 0 4px;gap:5px}
+  button{padding:7px 8px;font-size:12px;border-radius:8px}
+  .stage{
+    flex-direction:row;
+    align-items:flex-start;
+    gap:8px;
+    margin-top:4px;
+  }
+  .preview-shell{
+    flex:0 1 50%;
+    max-width:calc(50% - 4px);
+    min-width:0;
+    margin:0;
+    border-radius:10px;
+  }
+  .preview-shell .preview{
+    max-height:var(--stage-vh);
+    max-width:100%;
+  }
+  .side-panel{
+    flex:1 1 0;
+    min-width:0;
+    max-height:var(--stage-vh);
+    overflow-x:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    gap:5px;
+  }
+  #preview-shell.hidden + .side-panel{
+    max-height:none;
+    align-self:stretch;
+  }
+  .side-panel .grid{margin-top:0}
+  .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px;
+  }
+  .card{padding:6px 8px;min-height:0;border-radius:10px;box-shadow:0 4px 14px rgba(1,8,20,.22)}
+  .k{font-size:9px;margin-bottom:2px}
+  .v{font-size:13px;line-height:1.2}
+  .hint{font-size:10px;margin-top:0;padding:5px 6px;min-height:16px;flex-shrink:0}
+  .sign-grid{grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:5px;margin-top:6px}
+  .sign-item{padding:5px;border-radius:8px}
+  .sign-item img{max-height:64px}
+  .sign-item .lbl{font-size:10px;margin-top:3px}
+  .learn-target-img{width:100px;max-width:28vw;max-height:90px}
+}
 </style></head><body>
 <div class="wrap">
   <div class="topbar">
@@ -162,37 +283,64 @@ button:disabled{opacity:.6;cursor:wait}
     <button id="btn-read" onclick="setMode('read')">Read Mode</button>
     <button id="btn-speech_to_sign" onclick="setMode('speech_to_sign')">Speech to Sign</button>
     <button id="btn-learn" onclick="setMode('learn')">Learning Practice</button>
+    <button id="btn-terminate" class="danger" onclick="terminateApp()">Terminate</button>
   </div>
-  <img id="preview" class="preview" src="/video.jpg" alt="Camera preview" />
-  <div class="card hidden" id="card-learn-target-display">
-    <div class="k">Learning Target Sign</div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
-      <button id="btn-learn-prev" onclick="shiftLearnTarget(-1)">Prev</button>
-      <img id="learnTargetImage" src="" alt="Target sign" style="width:180px;max-width:42vw;max-height:180px;object-fit:contain;border-radius:10px;background:#0b1220;border:1px solid #334155;" />
-      <button id="btn-learn-next" onclick="shiftLearnTarget(1)">Next</button>
+  <div class="stage">
+    <div class="preview-shell" id="preview-shell">
+      <img id="preview" class="preview" src="/video.jpg" alt="Camera preview" />
+    </div>
+    <div class="side-panel">
+      <div class="card hidden" id="card-learn-target-display">
+        <div class="k">Learning Target Sign</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+          <button id="btn-learn-prev" onclick="shiftLearnTarget(-1)">Prev</button>
+          <img id="learnTargetImage" class="learn-target-img" src="" alt="Target sign" />
+          <button id="btn-learn-next" onclick="shiftLearnTarget(1)">Next</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card" id="card-prediction"><div class="k">Prediction</div><div class="v" id="prediction">-</div></div>
+        <div class="card" id="card-confidence"><div class="k">Confidence</div><div class="v" id="confidence">0.00</div></div>
+        <div class="card" id="card-tts"><div class="k">TTS</div><div class="v" id="tts">-</div></div>
+        <div class="card" id="card-transcript"><div class="k">Transcript</div><div class="v" id="transcript">-</div></div>
+        <div class="card" id="card-letters"><div class="k">Letters</div><div class="v" id="letters">-</div></div>
+        <div class="card" id="card-target"><div class="k">Target</div><div class="v" id="target">-</div></div>
+        <div class="card" id="card-passed"><div class="k">Passed</div><div class="v" id="passed">-</div></div>
+      </div>
+      <div class="card hidden" id="card-vosk-record">
+        <div class="k">Offline speech (Vosk)</div>
+        <button type="button" id="btn-vosk-toggle" onclick="toggleVoskRecording()">Start recording</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.35">
+          First click starts recording from the device microphone; second click stops, recognizes speech, and shows sign images. Recording stops automatically at the maximum duration.
+        </div>
+      </div>
+      <div class="card hidden" id="card-sign-gallery">
+        <div class="k">Sign Images</div>
+        <div id="signGallery" class="sign-grid"></div>
+      </div>
+      <div class="hint" id="hint">Ready.</div>
     </div>
   </div>
-  <div class="grid">
-    <div class="card" id="card-prediction"><div class="k">Prediction</div><div class="v" id="prediction">-</div></div>
-    <div class="card" id="card-confidence"><div class="k">Confidence</div><div class="v" id="confidence">0.00</div></div>
-    <div class="card" id="card-tts"><div class="k">TTS</div><div class="v" id="tts">-</div></div>
-    <div class="card" id="card-transcript"><div class="k">Transcript</div><div class="v" id="transcript">-</div></div>
-    <div class="card" id="card-letters"><div class="k">Letters</div><div class="v" id="letters">-</div></div>
-    <div class="card" id="card-target"><div class="k">Target</div><div class="v" id="target">-</div></div>
-    <div class="card" id="card-passed"><div class="k">Passed</div><div class="v" id="passed">-</div></div>
-  </div>
-  <div class="card hidden" id="card-sign-gallery">
-    <div class="k">Sign Images</div>
-    <div id="signGallery" class="sign-grid"></div>
-  </div>
-  <div class="hint" id="hint">Ready.</div>
 </div>
 <script>
 let refreshing = false;
 let speechRecognizer = null;
 let speechRunning = false;
 let speechSupported = false;
+let refreshTimer = null;
+let terminating = false;
+/** Last mode we applied via markActive (layout + speech). Avoid calling markActive every poll — it restarts Web Speech. */
+let lastSyncedMode = null;
+/** When true, onend must not call start() again (e.g. Chromium Web Speech "network" — cloud unreachable). */
+let speechRestartSuppressed = false;
+let voskRecording = false;
 function setHint(msg){ document.getElementById('hint').textContent = msg; }
+function updateVoskButton(){
+  const b = document.getElementById('btn-vosk-toggle');
+  if(!b) return;
+  b.textContent = voskRecording ? 'Stop and recognize' : 'Start recording';
+  b.classList.toggle('active', voskRecording);
+}
 function toSignAssetName(label){
   const text = (label || '').trim();
   if(!text){ return ''; }
@@ -232,6 +380,34 @@ async function shiftLearnTarget(step){
     setHint(`Target switch failed: ${err}`);
   }
 }
+async function toggleVoskRecording(){
+  const btn = document.getElementById('btn-vosk-toggle');
+  if(btn) btn.disabled = true;
+  try{
+    if(!voskRecording){
+      const r = await fetch('/api/speech-vosk/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const data = await r.json();
+      if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
+      voskRecording = true;
+      updateVoskButton();
+      setHint('Recording… Speak, then press Stop and recognize.');
+    }else{
+      const r = await fetch('/api/speech-vosk/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      const data = await r.json();
+      if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
+      voskRecording = false;
+      updateVoskButton();
+      document.getElementById('transcript').textContent = data.transcript ?? '-';
+      document.getElementById('letters').textContent = (data.letters||[]).join(' ') || '-';
+      renderSignGallery(data.letters || [], data.sign_assets || []);
+      setHint('Recognition finished.');
+    }
+  }catch(err){
+    setHint(`Offline speech failed: ${err}`);
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
 async function sendSpeech(utterance){
   const r = await fetch('/api/speech',{
     method:'POST',
@@ -248,13 +424,20 @@ function ensureSpeechRecognizer(){
   if(!SpeechRecognition){ return false; }
   speechRecognizer = new SpeechRecognition();
   speechRecognizer.lang = 'en-US';
-  speechRecognizer.continuous = true;
+  speechRecognizer.continuous = false;
   speechRecognizer.interimResults = false;
   speechRecognizer.maxAlternatives = 1;
   speechRecognizer.onresult = async (event)=>{
-    const transcript = event.results[event.results.length - 1][0].transcript || '';
-    const cleaned = transcript.trim();
+    let combined = '';
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const res = event.results[i];
+      if(!res.isFinal) continue;
+      const t = (res[0] && res[0].transcript) ? String(res[0].transcript).trim() : '';
+      if(t){ combined = combined ? `${combined} ${t}` : t; }
+    }
+    const cleaned = combined.trim();
     if(!cleaned){ return; }
+    speechRestartSuppressed = false;
     setHint(`Heard: ${cleaned}`);
     try{
       const resp = await sendSpeech(cleaned);
@@ -266,13 +449,22 @@ function ensureSpeechRecognizer(){
     }
   };
   speechRecognizer.onerror = (event)=>{
-    setHint(`Speech error: ${event.error}`);
+    if(event.error === 'network'){
+      speechRestartSuppressed = true;
+      setHint('Speech-to-text failed: network (Chromium cannot reach the cloud speech service). Check outbound HTTPS/DNS or try another network. Switch mode away and back to retry.');
+    }else{
+      setHint(`Speech error: ${event.error}`);
+    }
   };
   speechRecognizer.onend = ()=>{
     speechRunning = false;
-    if(document.getElementById('currentMode').textContent.includes('speech_to_sign')){
-      startSpeechRecognition();
+    if(!document.getElementById('currentMode').textContent.includes('speech_to_sign')){
+      return;
     }
+    if(speechRestartSuppressed){
+      return;
+    }
+    startSpeechRecognition();
   };
   speechSupported = true;
   return true;
@@ -282,7 +474,9 @@ function startSpeechRecognition(){
     setHint('Speech recognition is not supported in this browser.');
     return;
   }
-  if(speechRunning){ return; }
+  if(speechRunning){
+    return;
+  }
   try{
     speechRecognizer.start();
     speechRunning = true;
@@ -328,7 +522,7 @@ function toggleCard(id, show){
 function applyModeLayout(mode){
   // Common cards always visible: prediction/confidence
   if(mode === 'read'){
-    toggleCard('preview', true);
+    toggleCard('preview-shell', true);
     toggleCard('card-prediction', true);
     toggleCard('card-confidence', true);
     toggleCard('card-sign-gallery', false);
@@ -338,12 +532,14 @@ function applyModeLayout(mode){
     toggleCard('card-target', false);
     toggleCard('card-passed', false);
     toggleCard('card-learn-target-display', false);
+    toggleCard('card-vosk-record', false);
     return;
   }
   if(mode === 'speech_to_sign'){
-    toggleCard('preview', false);
+    toggleCard('preview-shell', false);
     toggleCard('card-prediction', false);
     toggleCard('card-confidence', false);
+    toggleCard('card-vosk-record', true);
     toggleCard('card-sign-gallery', true);
     toggleCard('card-tts', false);
     toggleCard('card-transcript', true);
@@ -354,7 +550,7 @@ function applyModeLayout(mode){
     return;
   }
   if(mode === 'learn'){
-    toggleCard('preview', true);
+    toggleCard('preview-shell', true);
     toggleCard('card-prediction', true);
     toggleCard('card-confidence', true);
     toggleCard('card-sign-gallery', false);
@@ -364,9 +560,10 @@ function applyModeLayout(mode){
     toggleCard('card-target', true);
     toggleCard('card-passed', true);
     toggleCard('card-learn-target-display', true);
+    toggleCard('card-vosk-record', false);
     return;
   }
-  toggleCard('preview', true);
+  toggleCard('preview-shell', true);
   toggleCard('card-prediction', true);
   toggleCard('card-confidence', true);
   toggleCard('card-sign-gallery', false);
@@ -376,6 +573,7 @@ function applyModeLayout(mode){
   toggleCard('card-target', true);
   toggleCard('card-passed', true);
   toggleCard('card-learn-target-display', false);
+  toggleCard('card-vosk-record', false);
 }
 function markActive(mode){
   ['read','speech_to_sign','learn'].forEach((m)=>{
@@ -385,16 +583,35 @@ function markActive(mode){
   document.getElementById('currentMode').textContent = `Mode: ${mode}`;
   applyModeLayout(mode);
   if(mode === 'learn'){
+    const shell = document.getElementById('preview-shell');
+    if(shell){ shell.classList.remove('hidden'); }
     const preview = document.getElementById('preview');
-    if(preview){
-      preview.classList.remove('hidden');
-      preview.src = `/video.jpg?t=${Date.now()}`;
-    }
+    if(preview){ preview.src = `/video.jpg?t=${Date.now()}`; }
   }
   if(mode === 'speech_to_sign'){
-    startSpeechRecognition();
+    speechRestartSuppressed = true;
+    stopSpeechRecognition();
+    voskRecording = false;
+    updateVoskButton();
+    setHint('Press Start recording to capture speech with the device microphone (offline Vosk).');
   }else{
     stopSpeechRecognition();
+  }
+}
+async function terminateApp(){
+  if(terminating){ return; }
+  if(!confirm('Terminate GestureBridge? The program will exit.')){ return; }
+  terminating = true;
+  if(refreshTimer !== null){
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  stopSpeechRecognition();
+  document.querySelectorAll('button').forEach((b)=>{ b.disabled = true; });
+  setHint('Shutting down GestureBridge...');
+  try{
+    await fetch('/api/shutdown',{method:'POST',headers:{'Content-Type':'application/json'}});
+  }catch(err){
   }
 }
 async function setMode(mode){
@@ -405,11 +622,17 @@ async function setMode(mode){
     const r = await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
     const data = await r.json();
     if(!r.ok){ throw new Error(data.error || `HTTP ${r.status}`); }
-    markActive(data.mode || mode);
-    if((data.mode || mode) !== 'speech_to_sign'){
+    const applied = data.mode || mode;
+    markActive(applied);
+    lastSyncedMode = applied;
+    if(applied !== 'speech_to_sign'){
       renderSignGallery([], []);
     }
-    setHint(`Mode switched to ${data.mode || mode}.`);
+    if(applied === 'speech_to_sign'){
+      setHint('Press Start recording to capture speech with the device microphone (offline Vosk).');
+    }else{
+      setHint(`Mode switched to ${applied}.`);
+    }
   }catch(err){
     setHint(`Mode switch failed: ${err}`);
   }finally{
@@ -417,7 +640,7 @@ async function setMode(mode){
   }
 }
 async function refresh(){
-  if(refreshing) return;
+  if(refreshing || terminating) return;
   refreshing = true;
   try{
     const r = await fetch('/api/state');
@@ -433,7 +656,28 @@ async function refresh(){
     document.getElementById('passed').textContent = `${s.passed ?? '-'}`;
     document.getElementById('letters').textContent = (s.letters||[]).join(' ') || '-';
     renderSignGallery(s.letters || [], s.sign_assets || []);
-    if(s.mode){ markActive(s.mode); }
+    if(typeof s.vosk_recording === 'boolean'){
+      voskRecording = s.vosk_recording;
+      updateVoskButton();
+    }
+    const vn = s.vosk_notification;
+    if(vn){
+      if(vn.ok && vn.result){
+        const resp = vn.result;
+        document.getElementById('transcript').textContent = resp.transcript ?? '-';
+        document.getElementById('letters').textContent = (resp.letters||[]).join(' ') || '-';
+        renderSignGallery(resp.letters || [], resp.sign_assets || []);
+        setHint(vn.autostop ? 'Recording stopped (maximum duration). Recognition finished.' : 'Recognition finished.');
+      }else if(!vn.ok){
+        setHint(`Offline speech: ${vn.error || 'failed'}`);
+      }
+      voskRecording = false;
+      updateVoskButton();
+    }
+    if(s.mode && s.mode !== lastSyncedMode){
+      markActive(s.mode);
+      lastSyncedMode = s.mode;
+    }
     if((s.mode || '') !== 'speech_to_sign'){
       const preview = document.getElementById('preview');
       preview.src = `/video.jpg?t=${Date.now()}`;
@@ -444,7 +688,7 @@ async function refresh(){
     refreshing = false;
   }
 }
-setInterval(refresh, 500); refresh();
+refreshTimer = setInterval(refresh, 500); refresh();
 </script></body></html>"""
 
 
@@ -487,11 +731,17 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                             "landmark_label": latest.get("landmark_label"),
                             "landmark_confidence": latest.get("landmark_confidence"),
                             "transcript": runtime.latest_transcript or state.transcript,
-                            "letters": state.letters,
+                            "letters": runtime.latest_speech_letters
+                            if runtime.latest_speech_letters
+                            else state.letters,
                             "target": runtime.learn_target,
                             "passed": latest_passed if runtime.mode == "learn" else state.passed,
                             "tts": runtime.latest_tts,
-                            "sign_assets": state.sign_assets,
+                            "sign_assets": runtime.latest_sign_assets
+                            if runtime.latest_sign_assets
+                            else state.sign_assets,
+                            "vosk_recording": runtime.is_vosk_recording(),
+                            "vosk_notification": runtime.take_vosk_notification(),
                         }
                     )
                 return
@@ -562,6 +812,35 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 self._send_json(result)
                 return
 
+            if self.path == "/api/speech-vosk/start":
+                try:
+                    runtime.start_vosk_recording()
+                except RuntimeError as exc:
+                    self._send_json({"error": str(exc)}, status=409)
+                    return
+                except Exception as exc:
+                    self._send_json({"error": str(exc)}, status=500)
+                    return
+                self._send_json({"ok": True, "recording": True})
+                return
+
+            if self.path == "/api/speech-vosk/stop":
+                try:
+                    result = runtime.stop_vosk_recording_and_run_speech_to_sign()
+                except RuntimeError as exc:
+                    self._send_json({"error": str(exc)}, status=400)
+                    return
+                except Exception as exc:
+                    self._send_json({"error": str(exc)}, status=500)
+                    return
+                with lock:
+                    state.transcript = str(result["transcript"])
+                    state.letters = list(result["letters"])
+                    state.sign_assets = list(result.get("sign_assets", []))
+                    state.status = "active"
+                self._send_json(result)
+                return
+
             if self.path == "/api/learn-target":
                 length = int(self.headers.get("Content-Length", "0"))
                 payload = json.loads(self.rfile.read(length) or b"{}")
@@ -572,6 +851,13 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                     state.target = target
                     state.status = "active"
                 self._send_json({"target": target})
+                return
+
+            if self.path == "/api/shutdown":
+                with lock:
+                    state.status = "shutting_down"
+                self._send_json({"status": "shutting_down"})
+                Thread(target=_trigger_shutdown, args=(True,), daemon=True).start()
                 return
 
             self._send_json({"error": "not_found"}, status=404)

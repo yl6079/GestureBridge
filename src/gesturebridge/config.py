@@ -114,9 +114,11 @@ class SerialConfig:
     err_prefix: str = "ERR"
     hand_label: str = "Hand"
     empty_label: str = "Empty"
-    hand_on_threshold: float = 0.50
-    hand_off_threshold: float = 0.20
-    empty_off_threshold: float = 0.80
+    # Edge Impulse Hand/Empty scores: lower hand_on = easier HUMAN_ON (more sensitive).
+    hand_on_threshold: float = 0.38
+    hand_off_threshold: float = 0.15
+    # Higher empty_off = only very confident "empty" triggers HUMAN_OFF (fewer false offs).
+    empty_off_threshold: float = 0.85
 
 
 @dataclass(slots=True)
@@ -137,6 +139,18 @@ class WebUIConfig:
     assets_dir: Path = Path("assets/signs")
     auto_open_browser: bool = True
     kiosk_mode: bool = True
+
+
+@dataclass(slots=True)
+class VoskConfig:
+    """Offline speech-to-text (Vosk small English). Download model to model_dir (see scripts/fetch_vosk_small.sh)."""
+
+    model_dir: Path = Path("artifacts/vosk/vosk-model-small-en-us-0.15")
+    sample_rate: int = 16000
+    max_record_sec: float = 60.0
+    #: PortAudio input: None = auto (prefer USB/webcam mic over silent defaults). Int = device index.
+    #: Str = substring match on device name. Env GESTUREBRIDGE_VOSK_INPUT_DEVICE overrides when set.
+    input_device: str | int | None = None
 
 
 @dataclass(slots=True)
@@ -161,3 +175,4 @@ class SystemConfig:
     serial: SerialConfig = field(default_factory=SerialConfig)
     daemon: DaemonConfig = field(default_factory=DaemonConfig)
     web: WebUIConfig = field(default_factory=WebUIConfig)
+    vosk: VoskConfig = field(default_factory=VoskConfig)

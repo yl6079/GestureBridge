@@ -14,6 +14,8 @@ from gesturebridge.bootstrap import build_controller
 from gesturebridge.config import SystemConfig
 from gesturebridge.devices.xiao import parse_serial_line
 from gesturebridge.system.daemon import StandbyDaemon
+from gesturebridge.system.mic_default import prefer_c270_default_mic
+
 
 def run_demo() -> None:
     controller = build_controller()
@@ -29,13 +31,17 @@ def run_demo() -> None:
 
 
 def _open_local_ui(url: str, kiosk_mode: bool) -> None:
-    if kiosk_mode:
-        for browser_cmd in ("chromium-browser", "chromium"):
-            browser_bin = shutil.which(browser_cmd)
-            if browser_bin:
-                subprocess.Popen([browser_bin, "--kiosk", "--noerrdialogs", "--disable-infobars", url])
-                print(f"Opened kiosk browser: {browser_cmd}")
-                return
+    for browser_cmd in ("chromium-browser", "chromium"):
+        browser_bin = shutil.which(browser_cmd)
+        if not browser_bin:
+            continue
+        if kiosk_mode:
+            subprocess.Popen([browser_bin, "--kiosk", "--noerrdialogs", "--disable-infobars", url])
+            print(f"Opened kiosk browser: {browser_cmd}")
+            return
+        subprocess.Popen([browser_bin, "--new-window", url])
+        print(f"Opened windowed browser: {browser_cmd}")
+        return
     xdg_open = shutil.which("xdg-open")
     if xdg_open:
         subprocess.Popen([xdg_open, url])
@@ -148,6 +154,7 @@ def main() -> None:
             ui_state.letters = list(result["letters"])
 
         print(f"Web UI: {cfg.web.kiosk_url}")
+        prefer_c270_default_mic()
         if cfg.web.auto_open_browser:
             _open_local_ui(cfg.web.kiosk_url, kiosk_mode=cfg.web.kiosk_mode)
         try:
