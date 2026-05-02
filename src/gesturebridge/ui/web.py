@@ -1,12 +1,32 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Lock
+from pathlib import Path
+from threading import Lock, Thread
+from time import sleep
 from typing import Any
 
 from gesturebridge.system.main_runtime import MainRuntime
+
+
+def _trigger_shutdown(kill_parent: bool = True) -> None:
+    """Background helper used by the /api/shutdown endpoint."""
+    sleep(0.25)
+    if kill_parent:
+        try:
+            ppid = os.getppid()
+            cmdline_path = Path(f"/proc/{ppid}/cmdline")
+            if cmdline_path.exists():
+                raw = cmdline_path.read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+                if "gesturebridge" in raw and "--run-daemon" in raw:
+                    os.kill(ppid, signal.SIGTERM)
+        except Exception:
+            pass
+    os._exit(0)
 
 
 @dataclass(slots=True)
@@ -25,7 +45,9 @@ class UIState:
 
 def _index_html() -> str:
     return """<!doctype html>
-<html><head><meta charset="utf-8"><title>GestureBridge</title>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GestureBridge</title>
 <style>
 *{box-sizing:border-box}
 :root{
@@ -56,8 +78,8 @@ body{
   margin-bottom:10px;
   gap:12px;
 }
-.title{font-size:30px;font-weight:760;letter-spacing:.2px}
-.subtitle{font-size:13px;color:var(--muted);margin-top:3px}
+.title{font-size:30px;font-weight:760;letter-spacing:.2px;line-height:1.1}
+.subtitle{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.25}
 .badge{
   font-size:13px;padding:8px 13px;border-radius:999px;
   background:linear-gradient(135deg,rgba(79,140,255,.24),rgba(124,92,255,.2));
@@ -65,19 +87,30 @@ body{
   color:#d8e5ff;
   box-shadow:0 8px 24px rgba(0,0,0,.22);
 }
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 8px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 8px;align-items:center}
 button{
   padding:11px 14px;border-radius:10px;border:1px solid var(--border);
   background:linear-gradient(180deg,rgba(24,38,67,.9),rgba(17,29,53,.92));
   color:var(--text);cursor:pointer;
   transition:all .15s ease;
   font-weight:600;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
 }
 button:hover{transform:translateY(-1px);border-color:#4d6697;background:#1a2b4e}
 button.active{
   background:linear-gradient(135deg,var(--accent),var(--accent-2));
   border-color:transparent;color:#fff;
   box-shadow:0 8px 20px rgba(79,140,255,.35);
+}
+button.danger{
+  background:linear-gradient(135deg,#e3433d,#b81c2a);
+  border-color:transparent;color:#fff;
+  box-shadow:0 8px 20px rgba(227,67,61,.35);
+}
+button.danger:hover{
+  background:linear-gradient(135deg,#ef5852,#cd2533);
+  border-color:transparent;
 }
 button:disabled{opacity:.6;cursor:wait}
 .grid{
@@ -96,14 +129,45 @@ button:disabled{opacity:.6;cursor:wait}
   box-shadow:0 10px 30px rgba(1,8,20,.28);
 }
 .hidden{display:none}
-.preview{
-  width:100%;
+.stage{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-top:2px;
+}
+.side-panel{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0;
+}
+.side-panel .grid{margin-top:0}
+.preview-shell{
   border-radius:14px;
   border:1px solid var(--border);
   background:#000;
-  min-height:260px;
-  object-fit:cover;
+  overflow:hidden;
   box-shadow:0 10px 30px rgba(1,8,20,.45);
+  width:100%;
+  max-width:min(1040px,100%);
+  margin-inline:auto;
+  flex-shrink:0;
+  line-height:0;
+}
+.preview-shell .preview{
+  display:block;
+  margin:0 auto;
+  width:auto;
+  max-width:100%;
+  height:auto;
+  max-height:min(85dvh,calc(100vw - 36px));
+  border-radius:0;
+  border:none;
+  box-shadow:none;
+}
+.learn-target-img{
+  width:160px;max-width:38vw;max-height:140px;object-fit:contain;
+  border-radius:10px;background:#0b1220;border:1px solid #334155;
 }
 .sign-grid{
   display:grid;
@@ -149,6 +213,63 @@ button:disabled{opacity:.6;cursor:wait}
   button{padding:10px 12px}
   .v{font-size:18px}
 }
+@media (max-height:540px),(max-width:820px){
+  :root{
+    --stage-vh:calc(100dvh - 108px);
+  }
+  body{min-height:100%;overflow-x:hidden}
+  .wrap{margin:6px auto 8px;padding:0 8px;max-width:100%}
+  .topbar{flex-wrap:wrap;margin-bottom:4px;gap:6px}
+  .title{font-size:17px}
+  .subtitle{font-size:10px;margin-top:1px}
+  .badge{font-size:10px;padding:4px 8px;flex-shrink:0}
+  .toolbar{margin:6px 0 4px;gap:5px}
+  button{padding:7px 8px;font-size:12px;border-radius:8px}
+  .stage{
+    flex-direction:row;
+    align-items:flex-start;
+    gap:8px;
+    margin-top:4px;
+  }
+  .preview-shell{
+    flex:0 1 50%;
+    max-width:calc(50% - 4px);
+    min-width:0;
+    margin:0;
+    border-radius:10px;
+  }
+  .preview-shell .preview{
+    max-height:var(--stage-vh);
+    max-width:100%;
+  }
+  .side-panel{
+    flex:1 1 0;
+    min-width:0;
+    max-height:var(--stage-vh);
+    overflow-x:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    gap:5px;
+  }
+  #preview-shell.hidden + .side-panel{
+    max-height:none;
+    align-self:stretch;
+  }
+  .side-panel .grid{margin-top:0}
+  .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px;
+  }
+  .card{padding:6px 8px;min-height:0;border-radius:10px;box-shadow:0 4px 14px rgba(1,8,20,.22)}
+  .k{font-size:9px;margin-bottom:2px}
+  .v{font-size:13px;line-height:1.2}
+  .hint{font-size:10px;margin-top:0;padding:5px 6px;min-height:16px;flex-shrink:0}
+  .sign-grid{grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:5px;margin-top:6px}
+  .sign-item{padding:5px;border-radius:8px}
+  .sign-item img{max-height:64px}
+  .sign-item .lbl{font-size:10px;margin-top:3px}
+  .learn-target-img{width:100px;max-width:28vw;max-height:90px}
+}
 </style></head><body>
 <div class="wrap">
   <div class="topbar">
@@ -162,36 +283,45 @@ button:disabled{opacity:.6;cursor:wait}
     <button id="btn-read" onclick="setMode('read')">Read Mode</button>
     <button id="btn-speech_to_sign" onclick="setMode('speech_to_sign')">Speech to Sign</button>
     <button id="btn-learn" onclick="setMode('learn')">Learning Practice</button>
+    <button id="btn-terminate" class="danger" onclick="terminateApp()">Terminate</button>
   </div>
-  <img id="preview" class="preview" src="/video.jpg" alt="Camera preview" />
-  <div class="card hidden" id="card-learn-target-display">
-    <div class="k">Learning Target Sign</div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
-      <button id="btn-learn-prev" onclick="shiftLearnTarget(-1)">Prev</button>
-      <img id="learnTargetImage" src="" alt="Target sign" style="width:180px;max-width:42vw;max-height:180px;object-fit:contain;border-radius:10px;background:#0b1220;border:1px solid #334155;" />
-      <button id="btn-learn-next" onclick="shiftLearnTarget(1)">Next</button>
+  <div class="stage">
+    <div class="preview-shell" id="preview-shell">
+      <img id="preview" class="preview" src="/video.jpg" alt="Camera preview" />
+    </div>
+    <div class="side-panel">
+      <div class="card hidden" id="card-learn-target-display">
+        <div class="k">Learning Target Sign</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+          <button id="btn-learn-prev" onclick="shiftLearnTarget(-1)">Prev</button>
+          <img id="learnTargetImage" class="learn-target-img" src="" alt="Target sign" />
+          <button id="btn-learn-next" onclick="shiftLearnTarget(1)">Next</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card" id="card-prediction"><div class="k">Prediction</div><div class="v" id="prediction">-</div></div>
+        <div class="card" id="card-confidence"><div class="k">Confidence</div><div class="v" id="confidence">0.00</div></div>
+        <div class="card" id="card-tts"><div class="k">TTS</div><div class="v" id="tts">-</div></div>
+        <div class="card" id="card-transcript"><div class="k">Transcript</div><div class="v" id="transcript">-</div></div>
+        <div class="card" id="card-letters"><div class="k">Letters</div><div class="v" id="letters">-</div></div>
+        <div class="card" id="card-target"><div class="k">Target</div><div class="v" id="target">-</div></div>
+        <div class="card" id="card-passed"><div class="k">Passed</div><div class="v" id="passed">-</div></div>
+      </div>
+      <div class="card hidden" id="card-sign-gallery">
+        <div class="k">Sign Images</div>
+        <div id="signGallery" class="sign-grid"></div>
+      </div>
+      <div class="hint" id="hint">Ready.</div>
     </div>
   </div>
-  <div class="grid">
-    <div class="card" id="card-prediction"><div class="k">Prediction</div><div class="v" id="prediction">-</div></div>
-    <div class="card" id="card-confidence"><div class="k">Confidence</div><div class="v" id="confidence">0.00</div></div>
-    <div class="card" id="card-tts"><div class="k">TTS</div><div class="v" id="tts">-</div></div>
-    <div class="card" id="card-transcript"><div class="k">Transcript</div><div class="v" id="transcript">-</div></div>
-    <div class="card" id="card-letters"><div class="k">Letters</div><div class="v" id="letters">-</div></div>
-    <div class="card" id="card-target"><div class="k">Target</div><div class="v" id="target">-</div></div>
-    <div class="card" id="card-passed"><div class="k">Passed</div><div class="v" id="passed">-</div></div>
-  </div>
-  <div class="card hidden" id="card-sign-gallery">
-    <div class="k">Sign Images</div>
-    <div id="signGallery" class="sign-grid"></div>
-  </div>
-  <div class="hint" id="hint">Ready.</div>
 </div>
 <script>
 let refreshing = false;
 let speechRecognizer = null;
 let speechRunning = false;
 let speechSupported = false;
+let refreshTimer = null;
+let terminating = false;
 function setHint(msg){ document.getElementById('hint').textContent = msg; }
 function toSignAssetName(label){
   const text = (label || '').trim();
@@ -328,7 +458,7 @@ function toggleCard(id, show){
 function applyModeLayout(mode){
   // Common cards always visible: prediction/confidence
   if(mode === 'read'){
-    toggleCard('preview', true);
+    toggleCard('preview-shell', true);
     toggleCard('card-prediction', true);
     toggleCard('card-confidence', true);
     toggleCard('card-sign-gallery', false);
@@ -341,7 +471,7 @@ function applyModeLayout(mode){
     return;
   }
   if(mode === 'speech_to_sign'){
-    toggleCard('preview', false);
+    toggleCard('preview-shell', false);
     toggleCard('card-prediction', false);
     toggleCard('card-confidence', false);
     toggleCard('card-sign-gallery', true);
@@ -354,7 +484,7 @@ function applyModeLayout(mode){
     return;
   }
   if(mode === 'learn'){
-    toggleCard('preview', true);
+    toggleCard('preview-shell', true);
     toggleCard('card-prediction', true);
     toggleCard('card-confidence', true);
     toggleCard('card-sign-gallery', false);
@@ -366,7 +496,7 @@ function applyModeLayout(mode){
     toggleCard('card-learn-target-display', true);
     return;
   }
-  toggleCard('preview', true);
+  toggleCard('preview-shell', true);
   toggleCard('card-prediction', true);
   toggleCard('card-confidence', true);
   toggleCard('card-sign-gallery', false);
@@ -385,16 +515,31 @@ function markActive(mode){
   document.getElementById('currentMode').textContent = `Mode: ${mode}`;
   applyModeLayout(mode);
   if(mode === 'learn'){
+    const shell = document.getElementById('preview-shell');
+    if(shell){ shell.classList.remove('hidden'); }
     const preview = document.getElementById('preview');
-    if(preview){
-      preview.classList.remove('hidden');
-      preview.src = `/video.jpg?t=${Date.now()}`;
-    }
+    if(preview){ preview.src = `/video.jpg?t=${Date.now()}`; }
   }
   if(mode === 'speech_to_sign'){
     startSpeechRecognition();
   }else{
     stopSpeechRecognition();
+  }
+}
+async function terminateApp(){
+  if(terminating){ return; }
+  if(!confirm('Terminate GestureBridge? The program will exit.')){ return; }
+  terminating = true;
+  if(refreshTimer !== null){
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  stopSpeechRecognition();
+  document.querySelectorAll('button').forEach((b)=>{ b.disabled = true; });
+  setHint('Shutting down GestureBridge...');
+  try{
+    await fetch('/api/shutdown',{method:'POST',headers:{'Content-Type':'application/json'}});
+  }catch(err){
   }
 }
 async function setMode(mode){
@@ -417,7 +562,7 @@ async function setMode(mode){
   }
 }
 async function refresh(){
-  if(refreshing) return;
+  if(refreshing || terminating) return;
   refreshing = true;
   try{
     const r = await fetch('/api/state');
@@ -444,7 +589,7 @@ async function refresh(){
     refreshing = false;
   }
 }
-setInterval(refresh, 500); refresh();
+refreshTimer = setInterval(refresh, 500); refresh();
 </script></body></html>"""
 
 
@@ -572,6 +717,13 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                     state.target = target
                     state.status = "active"
                 self._send_json({"target": target})
+                return
+
+            if self.path == "/api/shutdown":
+                with lock:
+                    state.status = "shutting_down"
+                self._send_json({"status": "shutting_down"})
+                Thread(target=_trigger_shutdown, args=(True,), daemon=True).start()
                 return
 
             self._send_json({"error": "not_found"}, status=404)

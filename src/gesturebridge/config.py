@@ -114,9 +114,11 @@ class SerialConfig:
     err_prefix: str = "ERR"
     hand_label: str = "Hand"
     empty_label: str = "Empty"
-    hand_on_threshold: float = 0.50
-    hand_off_threshold: float = 0.20
-    empty_off_threshold: float = 0.80
+    # Edge Impulse Hand/Empty scores: lower hand_on = easier HUMAN_ON (more sensitive).
+    hand_on_threshold: float = 0.38
+    hand_off_threshold: float = 0.15
+    # Higher empty_off = only very confident "empty" triggers HUMAN_OFF (fewer false offs).
+    empty_off_threshold: float = 0.85
 
 
 @dataclass(slots=True)
