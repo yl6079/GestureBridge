@@ -334,7 +334,21 @@ let lastSyncedMode = null;
 /** When true, onend must not call start() again (e.g. Chromium Web Speech "network" — cloud unreachable). */
 let speechRestartSuppressed = false;
 let voskRecording = false;
+/** Consecutive failed /api/state polls (e.g. network unreachable). */
+let statePollFailStreak = 0;
+/** Delay before next poll; 500ms when healthy, backs off on errors. */
+let pollIntervalMs = 500;
 function setHint(msg){ document.getElementById('hint').textContent = msg; }
+async function fetchStateReliable(){
+  const TIMEOUT_MS = 8000;
+  const ac = new AbortController();
+  const tid = setTimeout(()=>ac.abort(), TIMEOUT_MS);
+  try{
+    return await fetch('/api/state', {cache: 'no-store', signal: ac.signal});
+  }finally{
+    clearTimeout(tid);
+  }
+}
 function updateVoskButton(){
   const b = document.getElementById('btn-vosk-toggle');
   if(!b) return;
@@ -603,7 +617,7 @@ async function terminateApp(){
   if(!confirm('Terminate GestureBridge? The program will exit.')){ return; }
   terminating = true;
   if(refreshTimer !== null){
-    clearInterval(refreshTimer);
+    clearTimeout(refreshTimer);
     refreshTimer = null;
   }
   stopSpeechRecognition();
@@ -643,9 +657,14 @@ async function refresh(){
   if(refreshing || terminating) return;
   refreshing = true;
   try{
-    const r = await fetch('/api/state');
+    const r = await fetchStateReliable();
     const s = await r.json();
     if(!r.ok){ throw new Error(s.error || `HTTP ${r.status}`); }
+    pollIntervalMs = 500;
+    if(statePollFailStreak > 0){
+      statePollFailStreak = 0;
+      setHint('Connected.');
+    }
     document.getElementById('prediction').textContent = s.prediction ?? '-';
     const conf = Number(s.confidence ?? 0);
     document.getElementById('confidence').textContent = Number.isFinite(conf) ? conf.toFixed(2) : '0.00';
@@ -683,12 +702,39 @@ async function refresh(){
       preview.src = `/video.jpg?t=${Date.now()}`;
     }
   }catch(err){
-    setHint(`State refresh failed: ${err}`);
+    statePollFailStreak += 1;
+    pollIntervalMs = Math.min(Math.max(pollIntervalMs * 2, 1000), 8000);
+    if(statePollFailStreak === 1){
+      setHint('Reconnecting to GestureBridge…');
+    }else if(statePollFailStreak >= 4){
+      setHint(`Cannot reach GestureBridge (${err}). Is the app still running?`);
+    }
   }finally{
     refreshing = false;
   }
 }
-refreshTimer = setInterval(refresh, 500); refresh();
+function scheduleNextPoll(){
+  if(terminating){ return; }
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(()=>{
+    refresh().finally(()=>{
+      if(!terminating){
+        scheduleNextPoll();
+      }
+    });
+  }, pollIntervalMs);
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && !terminating){
+    pollIntervalMs = 500;
+    refresh();
+  }
+});
+refresh().finally(()=>{
+  if(!terminating){
+    scheduleNextPoll();
+  }
+});
 </script></body></html>"""
 
 
