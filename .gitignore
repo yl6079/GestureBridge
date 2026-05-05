@@ -53,6 +53,11 @@ test/
 # Local credentials
 notes/pi_access.md
 
+# All notes/ are internal-use only (dev logs, WeChat coordination,
+# preflight checklists). They never get pushed; anything the instructor
+# needs to reproduce lives in README.md / docs/ / scripts/ / src/.
+notes/
+
 # Local-only build outputs (May-4 deliverable)
 report/*.pdf
 GestureBridge_*.zip
