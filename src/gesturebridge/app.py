@@ -58,8 +58,17 @@ def main() -> None:
     parser.add_argument("--run-daemon", action="store_true", help="run standby daemon process")
     parser.add_argument("--mock-serial", default="", help="comma-separated mock serial events for daemon")
     parser.add_argument("--speech", default="", help="speech input for speech->sign mode")
+    parser.add_argument(
+        "--camera-index",
+        type=int,
+        default=None,
+        help="override cfg.asl29.runtime.camera_index (e.g. 0 = built-in webcam, 1 = external; on Pi C270 lands at /dev/video0 → index 0)",
+    )
     args = parser.parse_args()
     cfg = SystemConfig()
+    if args.camera_index is not None:
+        cfg.asl29.runtime.camera_index = args.camera_index
+        print(f"[app] camera_index override: {args.camera_index}")
     if sys.version_info >= (3, 13):
         venv311_python = Path.cwd() / ".venv311" / "bin" / "python"
         if venv311_python.exists():
@@ -136,12 +145,45 @@ def main() -> None:
                 )
                 print(f"[app] landmark MLP attached: {_lm_path}")
                 break
+        # Optional WLASL-100 word classifier (Phase 2). Auto-attach if the
+        # numpy weights file exists; absent → MainRuntime keeps word_classifier
+        # None and the Word UI button just prints a "not loaded" warning.
+        # Prefer Conv1D + GRU ensemble when both files exist (test top-1 57.7%
+        # vs Conv1D alone 52.7%); fall back to Conv1D alone otherwise.
+        word_classifier = None
+        word_npz = Path("artifacts/wlasl100/conv1d_small.npz")
+        word_labels = Path("artifacts/wlasl100/labels.txt")
+        gru_npz = Path("artifacts/wlasl100/gru_small.npz")
+        if word_npz.exists() and word_labels.exists():
+            try:
+                from gesturebridge.pipelines.word_classifier import WordClassifier
+
+                conv = WordClassifier(model_path=word_npz, labels_path=word_labels)
+                if gru_npz.exists():
+                    from gesturebridge.pipelines.word_ensemble import (
+                        EnsembleWordClassifier,
+                        GRUClassifier,
+                    )
+
+                    gru = GRUClassifier(model_path=gru_npz, labels_path=word_labels)
+                    word_classifier = EnsembleWordClassifier(conv=conv, gru=gru)
+                    print(
+                        f"[app] WLASL-100 ensemble attached (Conv1D+GRU, {len(conv.labels)} classes)"
+                    )
+                else:
+                    word_classifier = conv
+                    print(
+                        f"[app] WLASL-100 word classifier attached: {word_npz} ({len(conv.labels)} classes)"
+                    )
+            except Exception as exc:
+                print(f"[app] word_classifier load failed: {exc}", flush=True)
         main_runtime = MainRuntime(
             config=cfg,
             infer=infer,
             asr=OfflineASR(),
             tts=TTSOutput(),
             landmark_classifier=landmark_classifier,
+            word_classifier=word_classifier,
         )
         ui_state = UIState(status="active", mode=main_runtime.mode, target=main_runtime.learn_target)
         web = build_web_server(cfg.web.host, cfg.web.port, main_runtime, ui_state)

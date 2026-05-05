@@ -41,11 +41,24 @@ artifacts/
 *.onnx
 *.npz
 
+# Phase 2 word-recognition: raw clips not redistributed (license unclear
+# / C-UDA). Re-fetch via scripts/fetch_word_clips.sh.
+assets/word_clips/*.mp4
+assets/word_clips/*.webm
+external/WLASL/
+
 # Local test packaging area
 test/
 
 # Local credentials
 notes/pi_access.md
+
+# Internal-only directories. Nothing in here is pushed; the instructor
+# reads README.md / docs/ / scripts/ / src/ for reproduction. Reports
+# (slide decks, narration scripts, video plans) are delivered separately
+# as an Overleaf PDF, not tracked here.
+notes/
+report/
 
 # Local-only build outputs (May-4 deliverable)
 report/*.pdf
