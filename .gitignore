@@ -53,10 +53,12 @@ test/
 # Local credentials
 notes/pi_access.md
 
-# All notes/ are internal-use only (dev logs, WeChat coordination,
-# preflight checklists). They never get pushed; anything the instructor
-# needs to reproduce lives in README.md / docs/ / scripts/ / src/.
+# Internal-only directories. Nothing in here is pushed; the instructor
+# reads README.md / docs/ / scripts/ / src/ for reproduction. Reports
+# (slide decks, narration scripts, video plans) are delivered separately
+# as an Overleaf PDF, not tracked here.
 notes/
+report/
 
 # Local-only build outputs (May-4 deliverable)
 report/*.pdf
