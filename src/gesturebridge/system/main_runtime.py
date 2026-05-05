@@ -70,22 +70,61 @@ NATO_TO_LETTER: dict[str, str] = {
 # Phase 2: word-level speech-to-sign. Map spoken-word tokens to a video clip
 # under assets/word_clips/. When a token hits this map AND the clip file
 # exists at runtime, the response uses the clip instead of letter-spelling.
-# Aliases (e.g. "thanks" -> thank_you) live here so we don't have to invent
-# multiple clip files for synonyms.
+# Aliases (e.g. "thanks" -> thank_you, "mom" -> mother) live here so we
+# don't have to invent multiple clip files for synonyms.
 WORD_CLIP_MAP: dict[str, str] = {
-    "hello": "hello.mp4",
-    "hi": "hello.mp4",
-    "hey": "hello.mp4",
-    "thanks": "thank_you.mp4",
-    "thank": "thank_you.mp4",
-    "thank_you": "thank_you.mp4",
-    "thankyou": "thank_you.mp4",
-    "yes": "yes.mp4",
-    "yeah": "yes.mp4",
-    "yep": "yes.mp4",
-    "no": "no.mp4",
-    "nope": "no.mp4",
+    # Greetings / courtesies
+    "hello": "hello.mp4", "hi": "hello.mp4", "hey": "hello.mp4",
+    "thanks": "thank_you.mp4", "thank": "thank_you.mp4",
+    "thank_you": "thank_you.mp4", "thankyou": "thank_you.mp4",
+    "yes": "yes.mp4", "yeah": "yes.mp4", "yep": "yes.mp4",
+    "no": "no.mp4", "nope": "no.mp4",
+    "please": "please.mp4",
     "help": "help.mp4",
+    "more": "more.mp4",
+    # Pronouns / determiners
+    "my": "my.mp4", "mine": "my.mp4",
+    "you": "you.mp4", "your": "you.mp4",
+    # Family
+    "family": "family.mp4",
+    "mother": "mother.mp4", "mom": "mother.mp4", "mommy": "mother.mp4",
+    "father": "father.mp4", "dad": "father.mp4", "daddy": "father.mp4",
+    "friend": "friend.mp4",
+    # Verbs
+    "drink": "drink.mp4",
+    "eat": "eat.mp4",
+    "walk": "walk.mp4",
+    "work": "work.mp4",
+    "dance": "dance.mp4",
+    "play": "play.mp4",
+    "love": "love.mp4",
+    "like": "like.mp4",
+    "enjoy": "enjoy.mp4",
+    "finish": "finish.mp4", "finished": "finish.mp4", "done": "finish.mp4",
+    # Objects / food
+    "book": "book.mp4",
+    "chair": "chair.mp4",
+    "table": "table.mp4",
+    "bed": "bed.mp4",
+    "shirt": "shirt.mp4",
+    "food": "food.mp4",
+    "water": "water.mp4",
+    "orange": "orange.mp4",
+    "dog": "dog.mp4",
+    "school": "school.mp4",
+    # Adjectives / descriptors
+    "good": "good.mp4",
+    "bad": "bad.mp4",
+    "happy": "happy.mp4",
+    "sad": "sad.mp4",
+    "old": "old.mp4",
+    "wrong": "wrong.mp4",
+    "many": "many.mp4",
+    "deaf": "deaf.mp4",
+    # Time / identity
+    "time": "time.mp4",
+    "day": "day.mp4",
+    "name": "name.mp4",
 }
 
 
