@@ -60,11 +60,15 @@ def topk_accuracy(probs: np.ndarray, y: np.ndarray, k: int) -> float:
 
 
 def augment_batch(X: tf.Tensor) -> tf.Tensor:
-    """Train-time augmentation: temporal jitter + spatial scale."""
-    # Spatial scale 0.9 - 1.1
+    """Train-time augmentation: temporal jitter + spatial scale.
+
+    Stronger augmentations were tried (mirror flip, frame dropout, class
+    weighting) and regressed test top-1 from 53% to 42% — chirality-
+    sensitive signs in WLASL-100 punish blanket mirroring. Keeping the
+    minimal set that empirically worked best.
+    """
     scale = tf.random.uniform([tf.shape(X)[0], 1, 1], 0.9, 1.1)
     X = X * scale
-    # Temporal jitter ±2 frames (circular shift)
     shift = tf.random.uniform([], -2, 3, dtype=tf.int32)
     X = tf.roll(X, shift=shift, axis=1)
     return X

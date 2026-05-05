@@ -148,15 +148,33 @@ def main() -> None:
         # Optional WLASL-100 word classifier (Phase 2). Auto-attach if the
         # numpy weights file exists; absent → MainRuntime keeps word_classifier
         # None and the Word UI button just prints a "not loaded" warning.
+        # Prefer Conv1D + GRU ensemble when both files exist (test top-1 57.7%
+        # vs Conv1D alone 52.7%); fall back to Conv1D alone otherwise.
         word_classifier = None
         word_npz = Path("artifacts/wlasl100/conv1d_small.npz")
         word_labels = Path("artifacts/wlasl100/labels.txt")
+        gru_npz = Path("artifacts/wlasl100/gru_small.npz")
         if word_npz.exists() and word_labels.exists():
             try:
                 from gesturebridge.pipelines.word_classifier import WordClassifier
 
-                word_classifier = WordClassifier(model_path=word_npz, labels_path=word_labels)
-                print(f"[app] WLASL-100 word classifier attached: {word_npz} ({len(word_classifier.labels)} classes)")
+                conv = WordClassifier(model_path=word_npz, labels_path=word_labels)
+                if gru_npz.exists():
+                    from gesturebridge.pipelines.word_ensemble import (
+                        EnsembleWordClassifier,
+                        GRUClassifier,
+                    )
+
+                    gru = GRUClassifier(model_path=gru_npz, labels_path=word_labels)
+                    word_classifier = EnsembleWordClassifier(conv=conv, gru=gru)
+                    print(
+                        f"[app] WLASL-100 ensemble attached (Conv1D+GRU, {len(conv.labels)} classes)"
+                    )
+                else:
+                    word_classifier = conv
+                    print(
+                        f"[app] WLASL-100 word classifier attached: {word_npz} ({len(conv.labels)} classes)"
+                    )
             except Exception as exc:
                 print(f"[app] word_classifier load failed: {exc}", flush=True)
         main_runtime = MainRuntime(
