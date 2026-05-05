@@ -137,6 +137,7 @@ class WebUIConfig:
     port: int = 8080
     kiosk_url: str = "http://127.0.0.1:8080"
     assets_dir: Path = Path("assets/signs")
+    word_clips_dir: Path = Path("assets/word_clips")
     auto_open_browser: bool = True
     kiosk_mode: bool = True
 

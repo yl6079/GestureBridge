@@ -67,6 +67,28 @@ NATO_TO_LETTER: dict[str, str] = {
 }
 
 
+# Phase 2: word-level speech-to-sign. Map spoken-word tokens to a video clip
+# under assets/word_clips/. When a token hits this map AND the clip file
+# exists at runtime, the response uses the clip instead of letter-spelling.
+# Aliases (e.g. "thanks" -> thank_you) live here so we don't have to invent
+# multiple clip files for synonyms.
+WORD_CLIP_MAP: dict[str, str] = {
+    "hello": "hello.mp4",
+    "hi": "hello.mp4",
+    "hey": "hello.mp4",
+    "thanks": "thank_you.mp4",
+    "thank": "thank_you.mp4",
+    "thank_you": "thank_you.mp4",
+    "thankyou": "thank_you.mp4",
+    "yes": "yes.mp4",
+    "yeah": "yes.mp4",
+    "yep": "yes.mp4",
+    "no": "no.mp4",
+    "nope": "no.mp4",
+    "help": "help.mp4",
+}
+
+
 @dataclass(slots=True)
 class MainRuntime:
     config: SystemConfig
@@ -401,25 +423,30 @@ class MainRuntime:
         self.latest_transcript = transcript
         self.touch()
         tokens = [tok for tok in re.split(r"\s+", transcript.strip().lower()) if tok]
+        word_clips_dir = self.config.web.word_clips_dir
+        # Per-token lookup: prefer a word clip (if one exists on disk); else letter-spell.
+        # `letters` and `sign_assets` are kept aligned 1:1 so the UI can map indices.
         letters: list[str] = []
+        sign_assets: list[str] = []
         for tok in tokens:
             if tok in NATO_TO_LETTER:
-                letters.append(NATO_TO_LETTER[tok])
+                letter = NATO_TO_LETTER[tok]
+                letters.append(letter)
+                sign_assets.append(f"{letter}.jpg")
                 continue
-            letters.extend([ch.upper() for ch in tok if ch.isalpha()])
+            clip_name = WORD_CLIP_MAP.get(tok)
+            if clip_name and (word_clips_dir / clip_name).exists():
+                letters.append(tok.upper())
+                sign_assets.append(clip_name)
+                continue
+            for ch in tok:
+                if ch.isalpha():
+                    letters.append(ch.upper())
+                    sign_assets.append(f"{ch.upper()}.jpg")
         if not letters:
             letters = ["NOTHING"]
-        sign_assets: list[str] = []
+            sign_assets = ["nothing.jpg"]
         self.latest_speech_letters = list(letters)
-        for letter in letters:
-            if letter == "NOTHING":
-                sign_assets.append("nothing.jpg")
-            elif letter == "SPACE":
-                sign_assets.append("space.jpg")
-            elif letter == "DEL":
-                sign_assets.append("del.jpg")
-            else:
-                sign_assets.append(f"{letter}.jpg")
         self.latest_sign_assets = list(sign_assets)
         return {
             "mode": "speech_to_sign",

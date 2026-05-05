@@ -41,6 +41,12 @@ artifacts/
 *.onnx
 *.npz
 
+# Phase 2 word-recognition: raw clips not redistributed (license unclear
+# / C-UDA). Re-fetch via scripts/fetch_word_clips.sh.
+assets/word_clips/*.mp4
+assets/word_clips/*.webm
+external/WLASL/
+
 # Local test packaging area
 test/
 

@@ -518,13 +518,24 @@ function renderSignGallery(letters, signAssets){
   }
   letters.forEach((letter, idx)=>{
     const asset = (signAssets && signAssets[idx]) ? signAssets[idx] : toSignAssetName(letter);
-    const src = `/assets/signs/${asset}`;
+    const lower = (asset || '').toLowerCase();
+    const isVideo = lower.endsWith('.mp4') || lower.endsWith('.webm');
+    const src = isVideo ? `/assets/word_clips/${asset}` : `/assets/signs/${asset}`;
     const item = document.createElement('div');
     item.className = 'sign-item';
-    item.innerHTML = `
-      <img src="${src}" alt="Sign ${letter}" onerror="this.style.opacity=0.35;this.title='Missing image: ${asset}'" />
-      <div class="lbl">${letter}</div>
-    `;
+    if(isVideo){
+      item.innerHTML = `
+        <video src="${src}" autoplay loop muted playsinline
+               style="max-width:100%;height:auto;border-radius:8px"
+               onerror="this.style.opacity=0.35;this.title='Missing clip: ${asset}'"></video>
+        <div class="lbl">${letter}</div>
+      `;
+    } else {
+      item.innerHTML = `
+        <img src="${src}" alt="Sign ${letter}" onerror="this.style.opacity=0.35;this.title='Missing image: ${asset}'" />
+        <div class="lbl">${letter}</div>
+      `;
+    }
     box.appendChild(item);
   });
 }
@@ -791,12 +802,18 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                         }
                     )
                 return
-            if self.path.startswith("/assets/signs/"):
-                rel = self.path.removeprefix("/assets/signs/")
+            if self.path.startswith("/assets/signs/") or self.path.startswith(
+                "/assets/word_clips/"
+            ):
+                if self.path.startswith("/assets/signs/"):
+                    rel = self.path.removeprefix("/assets/signs/")
+                    assets_root = runtime.config.web.assets_dir
+                else:
+                    rel = self.path.removeprefix("/assets/word_clips/")
+                    assets_root = runtime.config.web.word_clips_dir
                 if "/" in rel or "\\" in rel:
                     self._send_json({"error": "invalid_path"}, status=400)
                     return
-                assets_root = runtime.config.web.assets_dir
                 asset_file = assets_root / rel
                 if not asset_file.exists() or not asset_file.is_file():
                     self._send_json({"error": "not_found"}, status=404)
@@ -812,6 +829,10 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                     content_type = "image/webp"
                 elif lower.endswith(".gif"):
                     content_type = "image/gif"
+                elif lower.endswith(".mp4"):
+                    content_type = "video/mp4"
+                elif lower.endswith(".webm"):
+                    content_type = "video/webm"
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Cache-Control", "no-store")
