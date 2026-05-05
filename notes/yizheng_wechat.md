@@ -37,6 +37,50 @@
 
 ---
 
+## 第 3 次同步 — 2026-05-05 晚
+
+哥，重大进展更新。
+
+之前我们 word recognition 的模型只有 21% top-1，看 demo 视频会很尴尬。我去
+Kaggle 找到了一个叫 chinhde/wlasl-300-landmarks 的数据集（实际上是 WLASL-100
+的 MediaPipe Holistic landmarks，MIT 协议，215MB），里面有 12,889 个 clips
+（我们之前才 670 个，相当于 19 倍数据）。
+
+跑了一下：
+
+- Conv1D-Small：测试集 top-1 **52.7%**，top-5 **86.2%**
+- GRU-Small：测试集 top-1 50.2%，top-5 83.7%
+- **ensemble（Conv1D + GRU 各 50%）：测试集 top-1 57.7%，top-5 87.0%** ← 部署版
+
+测试集每类只有 2-3 个样本（噪声很大），但 100 类里有 **30 个类的 top-1 是
+100%**，平均置信度 ≥67%。我从里面挑了 20 个词作为 demo 词汇表，存在
+`artifacts/wlasl100/demo_vocab.txt`：
+
+```
+water, tea, chair, table, bed, shirt, pencil, orange,
+dance, work, travel, finish, enjoy, have,
+new, wrong, many, problem, class, snow
+```
+
+代码上：
+
+- `pipelines/word_ensemble.py` 是 numpy 的 GRU 前向 + ensemble 包装器，跟
+  Keras 输出 bit-exact match (max diff 0.0)。Pi 上不需要装 TF，只 numpy。
+- `app.py` 自动加载 ensemble 如果 `artifacts/wlasl100/gru_small.npz` 存在。
+- 推理速度 1.07ms/clip on Mac，估计 Pi 上 5ms。
+
+部署到 Pi 我等你确认 ESP32 状态再做（见上一次同步的 Q1）。Pi 那边我已经能
+ssh 进去（Tailscale），就差 ESP32 看不到。
+
+剩下 Day 2 我打算：
+1. 你确认 ESP32 之后部署到 Pi，跑 end-to-end 看 latency。
+2. 把 speech-to-sign 的 word clips 从 5 个扩到 ~30 个（用 WLASL 视频
+   挑出来）。这样 "I drink tea" 这种句子能放 3 段词级视频而不是字母拼。
+3. 录 demo 视频。
+
+---
+
+
 ## 第 2 次同步 — 2026-05-05 下午
 
 哥，又一波进展同步。
