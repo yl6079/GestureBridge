@@ -299,4 +299,104 @@ sandbox 2-min timeout doesn't kill it, and re-train.
 
 ---
 
+## Iteration 4 — 2026-05-05 — Word mode UI integration (in-app capture button)
+
+### What was attempted
+
+Hook the trained Conv1D word classifier into the live web UI so the user
+can click a button, sign a word for ~1 s in front of the camera, and see
+the top-5 predictions in the same view as the existing letter pipeline.
+Keep it inside the existing **Read** mode tab so the user doesn't need
+to learn a new mode — letters and words coexist, exactly per the
+approved plan.
+
+### What works
+
+- `MainRuntime` now optionally holds a `word_classifier`. If
+  `artifacts/wlasl100/conv1d_small.npz` + `labels.txt` exist, `app.py`
+  auto-loads the WordClassifier and prints
+  `[app] WLASL-100 word classifier attached: … (100 classes)` at boot.
+- New runtime fields: `_word_capturing`, `_word_buffer` (list of 63-d
+  vectors), `_word_window_frames=30`, `_word_last_prediction` (sticky).
+- `process_camera_frame` pushes normalized landmarks into the buffer
+  whenever `_word_capturing` is True. When buffer hits 30 frames →
+  `_finalize_word_capture` runs the Conv1D, stashes top-5 with
+  per-prob confidence and elapsed wallclock seconds, and (if top-1 ≥
+  0.35) speaks the predicted word via TTS.
+- New endpoints:
+  - `POST /api/word/capture` → `{"ok": true, "window_frames": 30, "started_ts": ...}`
+  - `GET /api/state` now includes `word_loaded`, `word_capturing`,
+    `word_buffer_filled`, `word_window_frames`, `word_prediction`.
+- New UI card "Word Recognition (WLASL-100)" inside the Read mode
+  layout, hidden when the classifier isn't loaded. Button shows live
+  capture progress (`Capturing... (12/30)`) and renders top-5 with
+  confidence bars after each capture.
+- Smoke tested end-to-end on Mac with a stub runtime: state poll →
+  capture POST → 30 fake frames → prediction returned and sticky.
+
+### What broke
+
+- Initially called `take_word_prediction()` (clearing) inside
+  `/api/state`. Switched to a sticky model — clients poll the same
+  endpoint repeatedly and need the prediction to persist until next
+  capture. Added `clear_word_prediction()` for an explicit clear path
+  (not used yet).
+- Frames where MediaPipe finds no hand replicate the last-seen vector
+  rather than emitting zeros. Matches the training-time pad behaviour
+  in `extract_wlasl_landmarks.extract_clip`. Without this the Conv1D
+  receives noise-on-zero gaps and drops accuracy.
+
+### Files touched
+
+- `src/gesturebridge/app.py:148-167` — auto-attach WordClassifier from
+  npz weights file; prints attachment info.
+- `src/gesturebridge/system/main_runtime.py:79-95` — new word-mode fields.
+- `src/gesturebridge/system/main_runtime.py:392-405` — `process_camera_frame`
+  now feeds buffer when capturing; surfaces word state in response.
+- `src/gesturebridge/system/main_runtime.py:430-510` — new helper methods:
+  `_normalize_landmarks_63`, `_maybe_capture_word_frame`,
+  `_finalize_word_capture`, `start_word_capture`, `take_word_prediction`,
+  `clear_word_prediction`.
+- `src/gesturebridge/ui/web.py:799-806` — `/api/state` exposes
+  word_* fields.
+- `src/gesturebridge/ui/web.py:872-883` — `POST /api/word/capture`
+  handler.
+- `src/gesturebridge/ui/web.py:317-328` — new "Word Recognition" card
+  in the Read mode side panel.
+- `src/gesturebridge/ui/web.py:556-595` — JS: `wordLoaded` /
+  `wordCapturing` state, `startWordCapture()` POST function, render
+  loop fills the prediction list with confidence bars.
+- `src/gesturebridge/ui/web.py:572` — read-mode layout shows the new
+  card only when `word_loaded == true`.
+
+### Sources / URLs
+
+(no external downloads; pure code change)
+
+### Acceptance check
+
+```bash
+.venv/bin/python -m gesturebridge.app --run-main --camera-index 0
+# → opens http://127.0.0.1:8080
+# → Read mode tab shows new "Word Recognition (WLASL-100)" card
+# → Sign a word, click "Capture Word (1s)"
+# → After ~1 s, top-5 predictions appear with confidence bars
+# → If top-1 ≥ 0.35, TTS speaks the recognized word
+```
+
+### Next iteration entry point
+
+- **IT-6 (when Yizheng confirms Pi state):** rsync the new
+  `artifacts/wlasl100/` to Pi, run end-to-end on the C270, measure
+  added word-mode latency.
+- **Data top-up:** chunked yt-dlp on YouTube clips per-gloss to roughly
+  double the dataset, then retrain Conv1D and re-export weights.
+- **IT-7:** expand `WORD_CLIP_MAP` in `main_runtime.py` so speech-to-sign
+  also covers the WLASL-100 vocabulary (today only 5 words have video
+  clips; we can mine display clips from the WLASL videos already on
+  disk).
+
+---
+
+
 
