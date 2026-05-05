@@ -145,12 +145,27 @@ def main() -> None:
                 )
                 print(f"[app] landmark MLP attached: {_lm_path}")
                 break
+        # Optional WLASL-100 word classifier (Phase 2). Auto-attach if the
+        # numpy weights file exists; absent → MainRuntime keeps word_classifier
+        # None and the Word UI button just prints a "not loaded" warning.
+        word_classifier = None
+        word_npz = Path("artifacts/wlasl100/conv1d_small.npz")
+        word_labels = Path("artifacts/wlasl100/labels.txt")
+        if word_npz.exists() and word_labels.exists():
+            try:
+                from gesturebridge.pipelines.word_classifier import WordClassifier
+
+                word_classifier = WordClassifier(model_path=word_npz, labels_path=word_labels)
+                print(f"[app] WLASL-100 word classifier attached: {word_npz} ({len(word_classifier.labels)} classes)")
+            except Exception as exc:
+                print(f"[app] word_classifier load failed: {exc}", flush=True)
         main_runtime = MainRuntime(
             config=cfg,
             infer=infer,
             asr=OfflineASR(),
             tts=TTSOutput(),
             landmark_classifier=landmark_classifier,
+            word_classifier=word_classifier,
         )
         ui_state = UIState(status="active", mode=main_runtime.mode, target=main_runtime.learn_target)
         web = build_web_server(cfg.web.host, cfg.web.port, main_runtime, ui_state)

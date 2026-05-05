@@ -318,6 +318,15 @@ button:disabled{opacity:.6;cursor:wait}
         <div class="k">Sign Images</div>
         <div id="signGallery" class="sign-grid"></div>
       </div>
+      <div class="card hidden" id="card-word-capture">
+        <div class="k">Word Recognition (WLASL-100)</div>
+        <button type="button" id="btn-word-capture" onclick="startWordCapture()">Capture Word (1s)</button>
+        <div id="wordStatus" style="font-size:13px;color:var(--muted);margin-top:8px"></div>
+        <div id="wordPrediction" style="margin-top:10px"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.35">
+          Sign a single word in front of the camera, then click Capture. We hold for 1 second and show the top-5.
+        </div>
+      </div>
       <div class="hint" id="hint">Ready.</div>
     </div>
   </div>
@@ -327,6 +336,8 @@ let refreshing = false;
 let speechRecognizer = null;
 let speechRunning = false;
 let speechSupported = false;
+let wordLoaded = false;
+let wordCapturing = false;
 let refreshTimer = null;
 let terminating = false;
 /** Last mode we applied via markActive (layout + speech). Avoid calling markActive every poll — it restarts Web Speech. */
@@ -544,6 +555,20 @@ function toggleCard(id, show){
   if(!el) return;
   el.classList.toggle('hidden', !show);
 }
+async function startWordCapture(){
+  if(wordCapturing){ return; }
+  try{
+    const r = await fetch('/api/word/capture', {method:'POST', cache:'no-store'});
+    const j = await r.json();
+    if(!r.ok){
+      setHint(`Word capture failed: ${j.error || r.status}`);
+      return;
+    }
+    setHint('Capturing 1s — keep signing.');
+  }catch(err){
+    setHint(`Word capture failed: ${err}`);
+  }
+}
 function applyModeLayout(mode){
   // Common cards always visible: prediction/confidence
   if(mode === 'read'){
@@ -558,6 +583,7 @@ function applyModeLayout(mode){
     toggleCard('card-passed', false);
     toggleCard('card-learn-target-display', false);
     toggleCard('card-vosk-record', false);
+    toggleCard('card-word-capture', wordLoaded);
     return;
   }
   if(mode === 'speech_to_sign'){
@@ -712,6 +738,39 @@ async function refresh(){
       const preview = document.getElementById('preview');
       preview.src = `/video.jpg?t=${Date.now()}`;
     }
+    // Word mode UI updates (Phase 2 IT-4).
+    if(typeof s.word_loaded === 'boolean'){
+      const newLoaded = s.word_loaded;
+      if(newLoaded !== wordLoaded){
+        wordLoaded = newLoaded;
+        toggleCard('card-word-capture', wordLoaded && (s.mode || '') === 'read');
+      }
+    }
+    wordCapturing = !!s.word_capturing;
+    const wordBtn = document.getElementById('btn-word-capture');
+    const wordStatus = document.getElementById('wordStatus');
+    if(wordBtn){
+      wordBtn.disabled = wordCapturing;
+      wordBtn.textContent = wordCapturing
+        ? `Capturing... (${s.word_buffer_filled||0}/${s.word_window_frames||30})`
+        : 'Capture Word (1s)';
+    }
+    if(wordStatus && wordCapturing){
+      wordStatus.textContent = `Recording landmarks: ${s.word_buffer_filled||0}/${s.word_window_frames||30} frames`;
+    }
+    if(s.word_prediction && Array.isArray(s.word_prediction.top)){
+      const top = s.word_prediction.top;
+      const html = top.map((p, i)=>{
+        const pct = Math.round(p.prob*100);
+        const bar = '█'.repeat(Math.max(0, Math.round(p.prob*30)));
+        return `<div style="display:flex;gap:8px;align-items:baseline;font-size:14px"><b style="min-width:24px">#${i+1}</b><span style="min-width:120px">${p.label}</span><span style="color:#9db0cf;min-width:42px">${pct}%</span><span style="color:#7fa3ff">${bar}</span></div>`;
+      }).join('');
+      const pred = document.getElementById('wordPrediction');
+      if(pred) pred.innerHTML = html;
+      if(wordStatus && !wordCapturing){
+        wordStatus.textContent = `Last capture: ${s.word_prediction.elapsed_s}s`;
+      }
+    }
   }catch(err){
     statePollFailStreak += 1;
     pollIntervalMs = Math.min(Math.max(pollIntervalMs * 2, 1000), 8000);
@@ -799,6 +858,12 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                             else state.sign_assets,
                             "vosk_recording": runtime.is_vosk_recording(),
                             "vosk_notification": runtime.take_vosk_notification(),
+                            # Phase 2 IT-4 word mode UI hooks.
+                            "word_loaded": runtime.word_classifier is not None,
+                            "word_capturing": bool(latest.get("word_capturing", False)),
+                            "word_buffer_filled": int(latest.get("word_buffer_filled", 0)),
+                            "word_window_frames": runtime._word_window_frames,
+                            "word_prediction": runtime.take_word_prediction(),
                         }
                     )
                 return
@@ -864,6 +929,17 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                     state.mode = selected
                     state.status = "active"
                 self._send_json({"mode": selected})
+                return
+
+            if self.path == "/api/word/capture":
+                # Phase 2 IT-4: start a 1-second camera capture for word
+                # recognition. The camera loop fills the buffer; client polls
+                # GET /api/state for `word_prediction`.
+                result = runtime.start_word_capture()
+                if "error" in result:
+                    self._send_json(result, status=409)
+                else:
+                    self._send_json(result)
                 return
 
             if self.path == "/api/speech":

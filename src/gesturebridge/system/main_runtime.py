@@ -96,6 +96,7 @@ class MainRuntime:
     asr: OfflineASR
     tts: TTSOutput
     landmark_classifier: object | None = None  # optional LandmarkClassifier for ensemble
+    word_classifier: object | None = None  # optional WordClassifier for WLASL-100 word mode
     mode: str = "read"
     last_activity_ts: float = field(default_factory=monotonic)
     prediction_window: deque[tuple[str, float]] = field(default_factory=deque)
@@ -113,6 +114,14 @@ class MainRuntime:
     last_response: dict[str, object] | None = None
     last_learn_feedback: str = ""
     last_learn_feedback_ts: float = 0.0
+    # Word-mode capture state (Phase 2 IT-4). The user clicks "Capture Word"
+    # in the UI; the next N frames feed into _word_buffer; once full we run
+    # WordClassifier and stash the top-5 in _word_last_prediction.
+    _word_capturing: bool = field(default=False, init=False, repr=False)
+    _word_buffer: list = field(default_factory=list, init=False, repr=False)
+    _word_window_frames: int = field(default=30, init=False, repr=False)
+    _word_last_prediction: dict | None = field(default=None, init=False, repr=False)
+    _word_capture_started_ts: float = field(default=0.0, init=False, repr=False)
     _vosk_stt: object | None = field(default=None, init=False, repr=False)
     _vosk_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _vosk_recording: bool = field(default=False, init=False, repr=False)
@@ -377,6 +386,17 @@ class MainRuntime:
         }
         if ensemble_info:
             response.update(ensemble_info)
+
+        # Word-mode capture: while _word_capturing is True, accumulate
+        # normalized 21-landmark vectors per frame. When the buffer hits
+        # _word_window_frames, fire the WordClassifier and stash result.
+        if self._word_capturing and self.word_classifier is not None:
+            self._maybe_capture_word_frame(result)
+            response["word_capturing"] = True
+            response["word_buffer_filled"] = len(self._word_buffer)
+        if self._word_last_prediction is not None:
+            response["word_prediction"] = self._word_last_prediction
+
         if self.mode == "read":
             now = monotonic()
             cooldown = self.config.thresholds.tts_repeat_interval_seconds
@@ -411,6 +431,84 @@ class MainRuntime:
 
     def get_latest_frame_jpeg(self) -> bytes:
         return self.latest_frame_jpeg
+
+    # ------------------------------------------------------------------
+    # Word mode (Phase 2 IT-4): buffered camera capture + WordClassifier
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_landmarks_63(landmarks_21x3: np.ndarray) -> np.ndarray:
+        """Match scripts/extract_wlasl_landmarks._normalize_landmarks: wrist
+        origin, max-abs-distance scale, flatten to 63-d float32."""
+        wrist = landmarks_21x3[0:1]
+        rel = landmarks_21x3 - wrist
+        scale = float(np.linalg.norm(rel[:, :2], axis=1).max())
+        if scale < 1e-6:
+            scale = 1.0
+        return (rel / scale).astype(np.float32).reshape(-1)
+
+    def _maybe_capture_word_frame(self, infer_result) -> None:
+        # Bail if we don't have a useful landmark vector this frame —
+        # we still tick the buffer so the window length stays a fixed
+        # 1-second wallclock; missing-landmark frames repeat the last
+        # observation (matches training-time padding).
+        lm = getattr(infer_result, "landmarks", None)
+        if lm is not None and isinstance(lm, np.ndarray) and lm.shape == (21, 3):
+            self._word_buffer.append(self._normalize_landmarks_63(lm))
+        elif self._word_buffer:
+            self._word_buffer.append(self._word_buffer[-1])
+        else:
+            self._word_buffer.append(np.zeros(63, dtype=np.float32))
+
+        if len(self._word_buffer) >= self._word_window_frames:
+            self._finalize_word_capture()
+
+    def _finalize_word_capture(self) -> None:
+        if self.word_classifier is None or not self._word_buffer:
+            self._word_capturing = False
+            self._word_buffer = []
+            return
+        seq = np.stack(self._word_buffer[: self._word_window_frames]).astype(np.float32)
+        try:
+            preds = self.word_classifier.predict(seq, top_k=5)
+        except Exception as exc:
+            print(f"[main_runtime] word_classifier.predict failed: {exc}", flush=True)
+            preds = []
+        elapsed = max(0.0, monotonic() - self._word_capture_started_ts)
+        self._word_last_prediction = {
+            "top": [{"label": lbl, "prob": float(p)} for lbl, p in preds],
+            "elapsed_s": round(elapsed, 3),
+            "buffered_frames": len(self._word_buffer),
+        }
+        # Optional: speak the top-1 if it's confident.
+        if preds and preds[0][1] >= 0.35:
+            try:
+                self.latest_tts = self.tts.speak(preds[0][0])
+            except Exception:
+                pass
+        self._word_capturing = False
+        self._word_buffer = []
+
+    def start_word_capture(self) -> dict[str, object]:
+        if self.word_classifier is None:
+            return {"error": "word_classifier_not_loaded"}
+        self._word_buffer = []
+        self._word_last_prediction = None
+        self._word_capture_started_ts = monotonic()
+        self._word_capturing = True
+        return {
+            "ok": True,
+            "window_frames": self._word_window_frames,
+            "started_ts": self._word_capture_started_ts,
+        }
+
+    def take_word_prediction(self) -> dict | None:
+        # Sticky on purpose: the UI polls /api/state and we want the last
+        # prediction to persist until the next capture replaces it.
+        return self._word_last_prediction
+
+    def clear_word_prediction(self) -> None:
+        self._word_last_prediction = None
 
     def run_speech_to_sign(self, utterance: str) -> dict[str, object]:
         try:
