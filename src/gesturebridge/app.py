@@ -58,8 +58,17 @@ def main() -> None:
     parser.add_argument("--run-daemon", action="store_true", help="run standby daemon process")
     parser.add_argument("--mock-serial", default="", help="comma-separated mock serial events for daemon")
     parser.add_argument("--speech", default="", help="speech input for speech->sign mode")
+    parser.add_argument(
+        "--camera-index",
+        type=int,
+        default=None,
+        help="override cfg.asl29.runtime.camera_index (e.g. 0 = built-in webcam, 1 = external; on Pi C270 lands at /dev/video0 → index 0)",
+    )
     args = parser.parse_args()
     cfg = SystemConfig()
+    if args.camera_index is not None:
+        cfg.asl29.runtime.camera_index = args.camera_index
+        print(f"[app] camera_index override: {args.camera_index}")
     if sys.version_info >= (3, 13):
         venv311_python = Path.cwd() / ".venv311" / "bin" / "python"
         if venv311_python.exists():

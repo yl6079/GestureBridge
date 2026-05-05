@@ -10,7 +10,7 @@
 #   bash scripts/deploy_to_pi.sh
 #
 # Override targets via env:
-#   PI_USER=elen6908 PI_HOST=100.127.215.9 PI_PATH=/home/elen6908/Documents/GestureBridge/test \
+#   PI_USER=elen6908 PI_HOST=100.127.215.9 PI_PATH=/home/elen6908/Documents/GestureBridge \
 #     bash scripts/deploy_to_pi.sh
 #
 # Requires sshpass with the Pi password (held in env PI_PASS, NOT hardcoded).
@@ -19,7 +19,8 @@ set -euo pipefail
 
 PI_USER="${PI_USER:-elen6908}"
 PI_HOST="${PI_HOST:-100.127.215.9}"
-PI_PATH="${PI_PATH:-/home/elen6908/Documents/GestureBridge/test}"
+# Project moved off the old `test/` subdir on 2026-04-30; new canonical path:
+PI_PATH="${PI_PATH:-/home/elen6908/Documents/GestureBridge}"
 
 LOCAL_ARTIFACTS="$(cd "$(dirname "$0")/.." && pwd)/artifacts"
 
