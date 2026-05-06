@@ -43,4 +43,23 @@ if [ -f "$PROJECT_DIR/scripts/set_default_mic_c270.sh" ]; then
   bash "$PROJECT_DIR/scripts/set_default_mic_c270.sh" || true
 fi
 
-exec "$VENV_PY" -m gesturebridge.app --run-daemon
+# Mode auto-detect: with the ESP32 wake-trigger plugged in we use the
+# power-saving daemon (it spawns the main app on a HUMAN_ON event).
+# Without ESP32 the daemon would sit in standby forever and the web UI
+# at localhost:8080 returns "fail to fetch" in Chromium kiosk — so fall
+# back to running the main app directly (always-on). Override via
+# `GESTUREBRIDGE_FORCE_DAEMON=1 ./start_gesturebridge.sh` if needed.
+HAS_SERIAL=0
+if [ "${GESTUREBRIDGE_FORCE_DAEMON:-0}" = "1" ]; then
+  HAS_SERIAL=1
+elif compgen -G "/dev/ttyUSB*" > /dev/null 2>&1 || compgen -G "/dev/ttyACM*" > /dev/null 2>&1; then
+  HAS_SERIAL=1
+fi
+
+if [ "$HAS_SERIAL" = "1" ]; then
+  echo "[start] ESP32 serial detected -> daemon mode (wake-gated)"
+  exec "$VENV_PY" -m gesturebridge.app --run-daemon
+else
+  echo "[start] no ESP32 serial -> main mode (always-on)"
+  exec "$VENV_PY" -m gesturebridge.app --run-main --camera-index 0
+fi
