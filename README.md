@@ -34,11 +34,33 @@ On Raspberry Pi 5, full hand-present inference is ~37.6 ms mean (10 runs). Frame
 
 | Model | Test top-1 | Test top-5 | Notes |
 |---|---|---|---|
-| Conv1D-Small (50K params) | 0.527 | 0.862 | 30-frame x 63-d landmark sequence |
-| GRU-Small (80K params) | 0.502 | 0.837 | Same input |
-| **Conv1D + GRU ensemble** | **0.577** | **0.870** | 0.5 / 0.5 softmax average; deployed |
+| Conv1D-Small (50K params, Keras) | 0.527 | 0.862 | 30-frame × 63-d landmark sequence |
+| GRU-Small (80K params, Keras) | 0.502 | 0.837 | Same input |
+| Conv1D + GRU ensemble (prior) | 0.577 | 0.870 | 0.5 / 0.5 softmax average |
+| BigConv1D (best single, A100, PyTorch) | 0.657 | 0.875 | 400 K params, attention pool, mixup |
+| 3-seed BigConv1D mean | 0.657 | 0.908 | seeds 42/43/1337 |
+| **5-way ensemble (deployed)** | **0.674** | **0.921** | 0.7 × (3 BigConv1D mean) + 0.3 × (Conv1D + GRU)/2 |
 
-Trained on WLASL-100 canonical split (12,888 clips, Kaggle `chinhde/wlasl-300-landmarks`, MIT). On Mac CPU the ensemble head is ~1 ms/clip; on Pi 5 it adds ~5 ms on top of landmark extraction.
+Trained on the canonical WLASL-100 split (12,888 clips, Kaggle `chinhde/wlasl-300-landmarks`, MIT). The deployed 5-way ensemble runs as **pure numpy** on the Pi (no PyTorch / TF on Pi at runtime); the three BigConv1D seeds were trained on an external A100 and exported to npz with bit-exact numpy forward (max diff 2 × 10⁻⁶ vs PyTorch).
+
+Inference latency on Raspberry Pi 5: **17 ms / clip** for the 5-way ensemble (well under the 50 ms / frame budget). Capture latency from button press to result: **1.3 s** (the camera loop bypasses its 300 ms throttle while accumulating the 30-frame window).
+
+#### Confidence gating
+
+The deployed UI applies a calibrated probability threshold so users see honest "ambiguous" fallbacks instead of bad top-1 guesses:
+
+| Setting | Value |
+|---|---|
+| Global threshold (calibrated on the 239-clip held-out test) | 0.48 |
+| Coverage (fraction of captures shown as confident) | 66.5 % |
+| **Precision when shown confidently** | **81.1 %** |
+| When below threshold | UI renders top-3 + amber "Did you mean…?" banner |
+
+`scripts/calibrate_word_ensemble.py` reproduces the threshold; the runtime auto-loads `artifacts/wlasl100/calibration.npz` if present.
+
+#### Speech-to-sign
+
+44 reference clips covering ~55 spoken-word tokens with aliases (e.g. `mom → mother`, `dad → father`, `done → finish`). Out-of-vocabulary words fall back to letter-by-letter fingerspelling. End-to-end: Vosk transcribe + WORD_CLIP_MAP lookup; ~1-2 s + audio length.
 
 ## Three Bugs We Found and Fixed
 
@@ -56,15 +78,22 @@ C270 camera  ->  MediaPipe HandLandmarker
                      |
                      +-- no hand  ->  "nothing"           [~9 ms]
                      |
-                     +-- hand     ->  crop+resize 224     [~38 ms]
+                     +-- hand     ->  crop+resize 224
                                           |
-                                          +-- MobileNetV3-Small (TFLite FP32)
-                                          +-- Landmark MLP (optional, npz/tflite)
-                                          +-- 30-frame landmark buffer
+                                          +-- letter pipeline                       [~38 ms / frame]
+                                          |    +-- MobileNetV3-Small (TFLite FP32)
+                                          |    +-- Landmark MLP ensemble
+                                          |
+                                          +-- 30-frame rolling landmark buffer
                                                    |
-                                                   +-- Conv1D-Small (npz, numpy)
-                                                   +-- GRU-Small    (npz, numpy)
+                                                   +-- word pipeline (5-way ens.)   [~17 ms / clip]
+                                                        +-- Conv1D-Small  (npz, numpy)
+                                                        +-- GRU-Small     (npz, numpy)
+                                                        +-- BigConv1D × 3 (npz, numpy, A100-trained)
+                                                        +-- confidence gate (T=0.48)
 ```
+
+Word capture latency (button press → top-5 + gating): **~1.3 s** on Pi 5.
 
 Main entrypoint: `python -m gesturebridge.app`
 
@@ -169,7 +198,7 @@ unzip data/wlasl_external/wlasl-300-landmarks.zip -d data/wlasl_external/
 # 2) Convert to GestureBridge format (N, 30, 63)
 python scripts/convert_kaggle_wlasl100_landmarks.py
 
-# 3) Train both heads
+# 3a) Train Keras Conv1D + GRU baselines (Mac CPU, ~30 min total)
 python scripts/train_wlasl100_pose.py --arch conv1d_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
@@ -180,14 +209,62 @@ python scripts/train_wlasl100_pose.py --arch gru_small \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
 
-# 4) Single-clip sanity check
+# 3b) Train BigConv1D swarm on a CUDA box (we used A100; ~90 s/seed)
+python scripts/train_conv1d_a100.py --epochs 120 --seed 42  \
+  --out-dir artifacts/wlasl100_a100_conv1d
+python scripts/train_conv1d_a100.py --epochs 120 --seed 43  \
+  --out-dir artifacts/wlasl100_a100_conv1d_s43
+python scripts/train_conv1d_a100.py --epochs 120 --seed 1337 \
+  --out-dir artifacts/wlasl100_a100_conv1d_s1337
+
+# 3c) Export PyTorch ckpts to npz (numpy-only Pi runtime)
+python scripts/export_bigconv1d_to_npz.py \
+  --ckpt artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
+  --out  artifacts/wlasl100/bigconv1d_s42.npz
+# (repeat for s43, s1337)
+
+# 3d) Calibrate the deployed 5-way ensemble's confidence threshold
+python scripts/calibrate_word_ensemble.py
+# → writes artifacts/wlasl100/calibration.npz with the 0.48 global threshold
+
+# 4) Eval everything against the held-out 239-clip Kaggle test split
+python scripts/eval_a100_ensemble.py
+# → prints the comparison table (Conv1D / GRU / BigConv1D / ensembles)
+
+# 5) Single-clip sanity check
 python scripts/predict_word_clip.py path/to/clip.mp4
 ```
 
 Notes:
 
-- `scripts/train_wlasl100_pose.py` defaults to `data/wlasl100/landmarks.npz` and `data/wlasl100/labels.txt` if arguments are omitted.
-- Runtime auto-attaches word models only when files exist under `artifacts/wlasl100/` (Conv1D mandatory; GRU optional for ensemble).
+- The Pi runtime auto-attaches whichever word models exist under
+  `artifacts/wlasl100/`. With all three BigConv1D npz files plus the
+  Conv1D + GRU + calibration files present, it builds the 5-way
+  ensemble + gating; otherwise it gracefully falls back to fewer heads.
+- `scripts/train_wlasl100_pose.py` is the original Keras pipeline;
+  `scripts/train_conv1d_a100.py` is the PyTorch BigConv1D used on A100.
+  The two pipelines coexist — BigConv1D is the preferred backbone, the
+  Keras heads remain in the ensemble for diversity.
+
+#### Optional: signer-conditioned few-shot (5-word demo)
+
+Trades cross-signer breadth for per-signer accuracy on a small vocab.
+Run on the actual deployment Pi + signer.
+
+```bash
+# On the Pi, sit in front of the C270; SPACE to record each take
+.venv311/bin/python scripts/record_demo_vocab.py \
+  --words hello help yes no water --takes 5
+
+# On the development machine
+python scripts/finetune_demo_words.py \
+  --backbone artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
+  --out-dir artifacts/wlasl5
+```
+
+Expected: 90-98 % top-1 on the recorded vocabulary for that signer.
+The 5-class fine-tune coexists with (does not replace) the 100-class
+ensemble.
 
 ## Runtime Configuration
 
