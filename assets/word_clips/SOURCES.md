@@ -13,10 +13,12 @@ original 5) or follow the steps below for the full set.
 | 19 mined locally (IT-7) | chair, table, bed, shirt, orange, dance, work, finish, enjoy, wrong, many, family, mother, school, like, drink, dog, deaf, walk | Picked the largest clip per gloss from the WLASL-100 download already on disk under `data/wlasl100/videos/<gloss>/`. Per-clip source URLs recorded in `data/wlasl100/manifest.csv`. |
 | 18 added via aslbricks (IT-7) | water, food, please, more, father, time, day, name, eat, play, good, bad, happy, sad, old, book, you, my | `http://aslbricks.org/New/ASL-Videos/<word>.mp4` — needs a browser User-Agent header to bypass 406. |
 | 2 via signbsl mirror (IT-7) | love, friend | `https://media.signbsl.com/videos/asl/startasl/mp4/<word>.mp4` with referer `https://www.signasl.org/`. |
+| 36 mined locally (IT-11) | apple, before, birthday, black, blue, brown, white, but, can, change, computer, cook, fine, fish, forget, give, go, hot, how, last, later, letter, man, meet, need, now, paper, pizza, right, same, tell, want, what, who, woman, year | Same approach as the 19 IT-7 mined glosses — largest mp4 per gloss directory in `data/wlasl100/videos/`. |
 
-**Total: 44 word clips covering ~55 spoken-word tokens with aliases**
+**Total: 80 word clips covering ~115 spoken-word tokens with aliases**
 (e.g. `mom → mother.mp4`, `dad → father.mp4`, `done → finish.mp4`,
-`mine → my.mp4`).
+`mine → my.mp4`, `going / went → go.mp4`, `told / telling → tell.mp4`,
+`men → man.mp4`, etc.).
 
 ## License notes
 
