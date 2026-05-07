@@ -842,8 +842,16 @@ class MainRuntime:
                 if not ok:
                     continue
                 now = monotonic()
-                infer_interval_s = max(self.config.asl29.runtime.inference_interval_ms, 0) / 1000.0
-                should_infer = self.last_response is None or (now - self.last_infer_ts) >= infer_interval_s
+                # Default cadence (300 ms = 3 fps) keeps Pi CPU low for letter
+                # mode. While the user is mid word-capture, ignore the throttle
+                # so the 30-frame buffer fills as fast as the pipeline can
+                # produce frames (~20 fps on Pi 5). Drops capture latency from
+                # ~14 s to ~1.5 s.
+                if self._word_capturing:
+                    should_infer = True
+                else:
+                    infer_interval_s = max(self.config.asl29.runtime.inference_interval_ms, 0) / 1000.0
+                    should_infer = self.last_response is None or (now - self.last_infer_ts) >= infer_interval_s
                 if should_infer:
                     try:
                         result = self.process_camera_frame(frame)

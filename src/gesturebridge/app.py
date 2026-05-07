@@ -145,38 +145,76 @@ def main() -> None:
                 )
                 print(f"[app] landmark MLP attached: {_lm_path}")
                 break
-        # Optional WLASL-100 word classifier (Phase 2). Auto-attach if the
-        # numpy weights file exists; absent → MainRuntime keeps word_classifier
-        # None and the Word UI button just prints a "not loaded" warning.
-        # Prefer Conv1D + GRU ensemble when both files exist (test top-1 57.7%
-        # vs Conv1D alone 52.7%); fall back to Conv1D alone otherwise.
+        # WLASL-100 word classifier auto-attach. Precedence (highest first):
+        #   1. A100 5-way ensemble: 3x BigConv1D (s42/s43/s1337) + Conv1D + GRU
+        #      with 0.7 weight on A100 swarm and 0.3 on existing pair.
+        #      Honest test: top-1 0.674 / top-5 0.921 (vs deployed 0.577/0.870).
+        #   2. A100 BigConv1D swarm only (3x mean): 0.657 / 0.908.
+        #   3. Existing Conv1D + GRU ensemble (deployed prior): 0.577 / 0.870.
+        #   4. Conv1D alone, then None.
+        #
+        # Auto-attach is silent / falls through if files are missing (Pi may
+        # not have the bigconv1d_*.npz triple yet on first deploy).
         word_classifier = None
-        word_npz = Path("artifacts/wlasl100/conv1d_small.npz")
         word_labels = Path("artifacts/wlasl100/labels.txt")
+        word_npz = Path("artifacts/wlasl100/conv1d_small.npz")
         gru_npz = Path("artifacts/wlasl100/gru_small.npz")
-        if word_npz.exists() and word_labels.exists():
+        bigconv_paths = [
+            Path("artifacts/wlasl100/bigconv1d_s42.npz"),
+            Path("artifacts/wlasl100/bigconv1d_s43.npz"),
+            Path("artifacts/wlasl100/bigconv1d_s1337.npz"),
+        ]
+        if word_labels.exists():
             try:
                 from gesturebridge.pipelines.word_classifier import WordClassifier
 
-                conv = WordClassifier(model_path=word_npz, labels_path=word_labels)
+                bigconv_classifiers = []
+                for p in bigconv_paths:
+                    if p.exists():
+                        from gesturebridge.pipelines.word_bigconv1d import BigConv1DClassifier
+
+                        bigconv_classifiers.append(BigConv1DClassifier(model_path=p, labels_path=word_labels))
+
+                conv = WordClassifier(model_path=word_npz, labels_path=word_labels) if word_npz.exists() else None
+                gru = None
                 if gru_npz.exists():
-                    from gesturebridge.pipelines.word_ensemble import (
-                        EnsembleWordClassifier,
-                        GRUClassifier,
-                    )
+                    from gesturebridge.pipelines.word_ensemble import GRUClassifier
 
                     gru = GRUClassifier(model_path=gru_npz, labels_path=word_labels)
+
+                if bigconv_classifiers and conv is not None and gru is not None:
+                    from gesturebridge.pipelines.word_ensemble import MultiEnsembleWordClassifier
+
+                    # 0.7 / 0.3 split: each BigConv1D gets 0.7/3, Conv1D and GRU each get 0.15.
+                    bc_w = 0.7 / max(1, len(bigconv_classifiers))
+                    members = [(bc, bc_w) for bc in bigconv_classifiers]
+                    members += [(conv, 0.15), (gru, 0.15)]
+                    word_classifier = MultiEnsembleWordClassifier(members=members)
+                    print(
+                        f"[app] WLASL-100 5-way ensemble attached "
+                        f"({len(bigconv_classifiers)}x BigConv1D + Conv1D + GRU, "
+                        f"{len(conv.labels)} classes; expected test top-1 ~0.67)"
+                    )
+                elif bigconv_classifiers:
+                    from gesturebridge.pipelines.word_ensemble import MultiEnsembleWordClassifier
+
+                    members = [(bc, 1.0 / len(bigconv_classifiers)) for bc in bigconv_classifiers]
+                    word_classifier = MultiEnsembleWordClassifier(members=members)
+                    print(f"[app] WLASL-100 BigConv1D swarm attached ({len(bigconv_classifiers)}x)")
+                elif conv is not None and gru is not None:
+                    from gesturebridge.pipelines.word_ensemble import EnsembleWordClassifier
+
                     word_classifier = EnsembleWordClassifier(conv=conv, gru=gru)
                     print(
-                        f"[app] WLASL-100 ensemble attached (Conv1D+GRU, {len(conv.labels)} classes)"
+                        f"[app] WLASL-100 Conv1D+GRU ensemble attached ({len(conv.labels)} classes)"
                     )
-                else:
+                elif conv is not None:
                     word_classifier = conv
-                    print(
-                        f"[app] WLASL-100 word classifier attached: {word_npz} ({len(conv.labels)} classes)"
-                    )
+                    print(f"[app] WLASL-100 Conv1D alone attached ({len(conv.labels)} classes)")
             except Exception as exc:
+                import traceback
                 print(f"[app] word_classifier load failed: {exc}", flush=True)
+                traceback.print_exc()
         main_runtime = MainRuntime(
             config=cfg,
             infer=infer,

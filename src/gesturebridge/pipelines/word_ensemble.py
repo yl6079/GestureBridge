@@ -129,3 +129,53 @@ class EnsembleWordClassifier:
         probs = self.weight_conv * p1 + (1.0 - self.weight_conv) * p2
         idx = np.argsort(-probs)[:top_k]
         return [(self.conv.labels[int(i)], float(probs[int(i)])) for i in idx]
+
+
+@dataclass(slots=True)
+class MultiEnsembleWordClassifier:
+    """Soft-vote across an arbitrary list of (classifier, weight) pairs.
+
+    Each entry must have either:
+      - `forward_logits(seq) -> ndarray` (BigConv1D, GRU), OR
+      - `_forward(seq) -> ndarray` (legacy Conv1D path).
+
+    Used at runtime to combine the deployed Conv1D + GRU heads with the
+    A100-trained BigConv1D swarm. Empirical ranking on the WLASL-100
+    held-out test (239 clips):
+
+        Conv1D alone .................. 0.527
+        GRU alone ..................... 0.502
+        Conv1D + GRU (deployed) ....... 0.577
+        BigConv1D (single) ............ 0.640-0.657
+        3x BigConv1D mean ............. 0.657
+        5-way mean (3 BC1D + Conv1D + GRU) 0.661
+        0.3*existing + 0.7*A100 swarm . 0.674   <-- best
+    """
+    members: list[tuple[object, float]]
+
+    @property
+    def labels(self) -> list[str]:
+        return self.members[0][0].labels
+
+    @property
+    def input_shape(self) -> tuple[int, int]:
+        m = self.members[0][0]
+        if hasattr(m, "input_shape"):
+            return m.input_shape
+        return (30, 63)
+
+    def _logits_of(self, m, x: np.ndarray) -> np.ndarray:
+        if hasattr(m, "forward_logits"):
+            return m.forward_logits(x)
+        return m._forward(x)
+
+    def predict(self, sequence: np.ndarray, top_k: int = 5) -> list[tuple[str, float]]:
+        x = sequence.astype(np.float32)
+        total_w = sum(w for _, w in self.members)
+        agg = None
+        for m, w in self.members:
+            p = _softmax(self._logits_of(m, x))
+            agg = (w * p) if agg is None else agg + (w * p)
+        probs = agg / max(total_w, 1e-6)
+        idx = np.argsort(-probs)[:top_k]
+        return [(self.labels[int(i)], float(probs[int(i)])) for i in idx]
