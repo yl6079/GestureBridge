@@ -307,3 +307,61 @@ pytest
 ```
 
 Test suite covers daemon state transitions, mode logic, and parts of the training pipeline.
+
+## Citations
+
+This project builds on and uses the following resources. Please cite the
+upstream datasets and models if you reuse this work.
+
+### Datasets
+
+- **WLASL** (word-level ASL recognition):
+  Li, D., Rodriguez, C., Yu, X., & Li, H. (2020). *Word-level Deep Sign
+  Language Recognition from Video: A New Large-scale Dataset and Methods
+  Comparison.* WACV 2020.
+  Repo: <https://github.com/dxli94/WLASL>. License: C-UDA (computational
+  use only).
+- **WLASL-100 pre-extracted MediaPipe Holistic landmarks**:
+  Kaggle dataset *chinhde/wlasl-300-landmarks* (despite the name, ships
+  the canonical WLASL-100 split). License: MIT.
+  <https://www.kaggle.com/datasets/chinhde/wlasl-300-landmarks>
+- **ASL Alphabet (29-class)**: Kaggle dataset
+  *grassknoted/asl-alphabet*.
+  <https://www.kaggle.com/datasets/grassknoted/asl-alphabet>
+- **Word reference clips** (`assets/word_clips/`): aslbricks.org direct
+  MP4s, signbsl.com Start ASL mirror, plus selected clips mined from the
+  WLASL pool. Educational / academic use only — not redistributed.
+  Per-clip provenance: `assets/word_clips/SOURCES.md`.
+
+### Models and libraries
+
+- **MediaPipe Hands** (21-landmark hand tracking):
+  Zhang, F., Bazarevsky, V., Vakunov, A., et al. (2020). *MediaPipe
+  Hands: On-device Real-time Hand Tracking.* CVPR Workshop.
+  <https://google.github.io/mediapipe/solutions/hands>
+- **MobileNetV3-Small** (letter image classifier backbone):
+  Howard, A., Sandler, M., Chu, G., et al. (2019). *Searching for
+  MobileNetV3.* ICCV 2019. arXiv:1905.02244.
+- **Vosk** (offline speech recognition):
+  Alpha Cephei. <https://alphacephei.com/vosk/>. Model used:
+  `vosk-model-small-en-us-0.15`.
+- **TensorFlow Lite + XNNPACK** (FP32 letter inference on Pi 5).
+  <https://www.tensorflow.org/lite> · <https://github.com/google/XNNPACK>
+- **pyttsx3** (cross-platform offline TTS).
+  <https://github.com/nateshmbhat/pyttsx3>
+- **NumPy / OpenCV / TensorFlow / scikit-learn** for training-time work
+  on Mac; **numpy / ai_edge_litert / mediapipe / opencv-python** for the
+  Pi inference path.
+
+### Phase 2 design notes
+
+- The Conv1D-Small / GRU-Small temporal heads on landmark sequences are
+  small custom architectures. Pose-only WLASL baselines in the
+  literature (e.g. Pose-TGCN, Li et al. 2020, and ASL Citizen baselines,
+  Desai et al. NeurIPS 2023) report 60–70 % top-1 / 85–90 % top-5 on
+  WLASL-100; our ensemble lands in the lower end of that band
+  (test top-1 57.7 %, top-5 87.0 %).
+- ASL Citizen: Desai, A., Berger, L., Minakov, F. P., et al. (2023).
+  *ASL Citizen: A Community-Sourced Dataset for Advancing Isolated Sign
+  Language Recognition.* NeurIPS 2023 Datasets & Benchmarks.
+  <https://www.microsoft.com/en-us/research/project/asl-citizen/>
