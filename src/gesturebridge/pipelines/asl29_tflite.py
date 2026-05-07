@@ -54,6 +54,11 @@ class ASL29TFLiteRuntime:
     top_k: int = 3
     use_hand_crop: bool = False
     hand_cropper_model_path: Path | None = None
+    # MediaPipe HandLandmarker confidence floor. Default matches HandCropper
+    # production setting; lower values (e.g. 0.05) are used in offline eval
+    # over Kaggle's tight 200x200 crops where the higher floor rejects most
+    # frames as "no hand".
+    hand_min_confidence: float = 0.3
     labels: list[str] = field(init=False)
     interpreter: object = field(init=False)
     input_details: dict = field(init=False)
@@ -71,6 +76,7 @@ class ASL29TFLiteRuntime:
                 self._cropper = HandCropper(
                     output_size=self.image_size,
                     model_path=self.hand_cropper_model_path or DEFAULT_MODEL_PATH,
+                    min_confidence=self.hand_min_confidence,
                 )
             except FileNotFoundError as exc:
                 # Non-fatal: log once, fall back to plain resize. Demo-day insurance.
