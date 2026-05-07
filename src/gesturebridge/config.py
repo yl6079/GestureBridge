@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -128,7 +129,13 @@ class DaemonConfig:
     min_active_seconds: int = 8
     debounce_human_on_seconds: float = 0.8
     debounce_human_off_seconds: float = 2.0
-    main_command: tuple[str, ...] = ("python", "-m", "gesturebridge.app", "--run-main")
+    # Use sys.executable so the daemon-spawned main runs in the SAME
+    # interpreter as the daemon itself — avoids a class of bugs where a
+    # PATH inheritance quirk picks up a different Python that's missing
+    # one of our deps. The launcher's `export PATH=...` already sets
+    # this up correctly today, but going hermetic here removes the
+    # depends-on-environment failure mode entirely.
+    main_command: tuple[str, ...] = (sys.executable, "-m", "gesturebridge.app", "--run-main")
 
 
 @dataclass(slots=True)

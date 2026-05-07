@@ -829,6 +829,17 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 self.end_headers()
                 self.wfile.write(html)
                 return
+            if self.path == "/api/diagnostics":
+                # Subsystem health snapshot (Phase 2 IT-9). Cheap to compute,
+                # safe under load — meant to be hit during debug sessions:
+                #   curl -s http://127.0.0.1:8080/api/diagnostics | python3 -m json.tool
+                try:
+                    payload = runtime.diagnostics()
+                except Exception as exc:
+                    payload = {"error": str(exc)}
+                self._send_json(payload)
+                return
+
             if self.path == "/api/state":
                 latest = runtime.last_response or {}
                 latest_passed = bool(latest.get("passed", False))
