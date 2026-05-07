@@ -828,7 +828,16 @@ class MainRuntime:
                     cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.asl29.runtime.webcam_width)
                     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.asl29.runtime.webcam_height)
                     if not cap.isOpened():
-                        raise RuntimeError(f"Unable to open camera index {self.config.asl29.runtime.camera_index}")
+                        # Keep web/API alive even if camera is temporarily missing.
+                        self._set_placeholder_frame(
+                            "Camera unavailable",
+                            f"Cannot open camera index {self.config.asl29.runtime.camera_index}. "
+                            "Check USB/camera permissions, then reconnect.",
+                        )
+                        cap.release()
+                        cap = None
+                        sleep(0.5)
+                        continue
                 ok, frame = cap.read()
                 if not ok:
                     continue

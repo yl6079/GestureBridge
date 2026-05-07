@@ -8,7 +8,6 @@ from gesturebridge.config import SystemConfig
 from gesturebridge.devices.xiao import SerialBridge, SerialEvent, parse_serial_line
 from gesturebridge.state_machine import DaemonState, DaemonStateMachine
 
-
 @dataclass(slots=True)
 class ProcessHandle:
     process: subprocess.Popen[str] | None = None
@@ -64,9 +63,11 @@ class StandbyDaemon:
 
     def apply_serial_event(self, event: SerialEvent) -> str:
         now = monotonic()
+        # Any parsed serial line proves the MCU link is alive; don't require
+        # a dedicated "PING" token to keep the heartbeat fresh.
+        self.last_ping = now
         self._log(f"event={event.event_type} payload='{event.payload}' score={event.score}")
         if event.event_type == "PING":
-            self.last_ping = now
             return "ping"
 
         if event.event_type == "HUMAN_ON":
