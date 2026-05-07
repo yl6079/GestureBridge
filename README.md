@@ -1,18 +1,24 @@
 # GestureBridge
 
-Real-time American Sign Language interpreter on a Raspberry Pi 5. Camera in, speech out. No cloud, no internet.
+Real-time American Sign Language system on Raspberry Pi 5. Camera in, speech out, fully offline.
 
 Yizheng Lin, Shufeng Chen. ELEN 6908, Spring 2026.
 
-## Background
+## Project Overview
 
-Most production sign-language interpreters today depend on cloud inference, which introduces latency, privacy exposure, and a hard requirement for an internet uplink that is not always available in classrooms, clinics, or assistive contexts. GestureBridge runs the entire vision and speech pipeline on a single Raspberry Pi 5 paired with an ESP32 motion sensor, demonstrating that a complete bidirectional ASL interaction system fits comfortably inside the compute budget of a fanless edge device. The system covers two granularities of recognition — the **29-letter ASL alphabet** for fingerspelling and **WLASL-100 word-level signs** for natural ASL — across three modes: gesture to speech, speech to reference image (with word-level video clips), and an interactive trainer with true / false feedback.
+GestureBridge is an edge-first ASL interaction system that runs entirely on-device (no cloud dependency). It supports:
+
+- **ASL29 letter recognition** (A-Z + `del` + `nothing` + `space`) from webcam frames.
+- **WLASL-100 word recognition** from 30-frame hand-landmark sequences.
+- **Three UI modes** in a local web app:
+  - **Read:** gesture to spoken output.
+  - **Speech-to-sign:** offline speech input to sign assets (word clips first, then letter fallback).
+  - **Trainer:** interactive letter practice with immediate feedback.
+- **Low-power standby orchestration** via serial wake signals (`Hand` / `Empty`) from an external ESP32 sensor node.
 
 ## Results
 
 ### Letter recognition (29-class ASL alphabet)
-
-![Honest evaluation and on-device latency](docs/results_summary.png)
 
 | Model | Test accuracy | Notes |
 |---|---|---|
@@ -22,155 +28,342 @@ Most production sign-language interpreters today depend on cloud inference, whic
 | **Ensemble** | **0.829** | +2.7 pp over MobileNet alone |
 | INT8 (Kaggle calibrated) | 0.218 | Distribution mismatch; do not deploy |
 
-On the Raspberry Pi 5, one full inference takes 37.6 ms mean (median 37.7 ms) over 10 runs. Frames with no detected hand short-circuit at 9 ms.
+On Raspberry Pi 5, full hand-present inference is ~37.6 ms mean (10 runs). Frames with no detected hand short-circuit at ~9 ms.
 
 ### Word recognition (WLASL-100, dynamic signs)
 
-Letters by themselves are unnatural for fluent ASL; native signers use word-level glosses and reserve fingerspelling for proper nouns. We train a lightweight pose-only sequence classifier on top of the existing MediaPipe HandLandmarker stream so word recognition reuses the same per-frame detection (no new hardware, no new accelerator).
-
 | Model | Test top-1 | Test top-5 | Notes |
 |---|---|---|---|
-| Conv1D-Small (50K params) | 0.527 | 0.862 | 30-frame × 63-d landmark sequence |
+| Conv1D-Small (50K params) | 0.527 | 0.862 | 30-frame x 63-d landmark sequence |
 | GRU-Small (80K params) | 0.502 | 0.837 | Same input |
 | **Conv1D + GRU ensemble** | **0.577** | **0.870** | 0.5 / 0.5 softmax average; deployed |
 
-Trained on the canonical WLASL-100 split, 12,888 clips total (Kaggle `chinhde/wlasl-300-landmarks`, MIT). On Mac CPU the ensemble runs at ~1 ms / clip; on the Pi 5 it adds an estimated 5 ms on top of the existing landmark extraction.
+Trained on WLASL-100 canonical split (12,888 clips, Kaggle `chinhde/wlasl-300-landmarks`, MIT). On Mac CPU the ensemble head is ~1 ms/clip; on Pi 5 it adds ~5 ms on top of landmark extraction.
 
-**30 of 100 classes hit 100 % test top-1** with mean confidence ≥ 67 %. The 20 strongest of those are curated as a demo vocabulary at `artifacts/wlasl100/demo_vocab.txt`: water, tea, chair, table, bed, shirt, pencil, orange, dance, work, travel, finish, enjoy, have, new, wrong, many, problem, class, snow.
+## Three Bugs We Found and Fixed
 
-The remaining classes are honest: noisy 2-3-clip per-class test buckets and class confusions consistent with WLASL pose-only baselines (~60-70 % top-1 in the literature). For arbitrary in-the-wild signing the model is best read top-3 with on-screen confidence.
+1. **Frame leakage** from naive random split on sequential Kaggle frames.  
+   Fix: contiguous split per class block.
+2. **Invalid left-right augmentation** for chirality-sensitive letters.  
+   Fix: remove random flip; keep mild crop-pad/hue jitter.
+3. **Train/inference distribution mismatch** (tight 200x200 crops vs webcam full frame).  
+   Fix: MediaPipe hand ROI crop with padding before MobileNet.
 
-## Three latent bugs we found and fixed
-
-The starting point was a system reporting 100 % held-out accuracy that delivered 0.08 confidence on the actual webcam. Three bugs combined to produce that gap.
-
-1. **Frame leakage.** `train_test_split(stratify=y)` on the Kaggle ASL Alphabet (3,000 sequential frames per class) puts adjacent video frames into both train and test. The model memorized the recording. Fix: contiguous-block split, frames 1 to 2400 train, 2401 to 2700 val, 2701 to 3000 test.
-2. **ASL-incorrect flip augmentation.** `tf.image.random_flip_left_right` breaks chirality-sensitive signs (J, L, J/Z trajectory). Fix: removed the flip, added small crop-pad and hue jitter.
-3. **Distribution mismatch at inference.** Kaggle images are 200×200 hand-filled squares; C270 frames are 640×480 with the hand at roughly 20 % of area. Fix: insert MediaPipe HandLandmarker, crop a 25 % padded ROI, resize to 224×224 before MobileNet.
-
-## System
+## Runtime Architecture
 
 ```
 C270 camera  ->  MediaPipe HandLandmarker
                      |
-                     +-- no hand  ->  "nothing"           [ 9 ms]
+                     +-- no hand  ->  "nothing"           [~9 ms]
                      |
-                     +-- hand     ->  crop+resize 224     [38 ms]
+                     +-- hand     ->  crop+resize 224     [~38 ms]
                                           |
-                                          +--  MobileNetV3-Small (TFLite FP32)        }
-                                          +--  Landmark MLP (63-d, sklearn -> npz)    }  letter ensemble
-                                          |                                                  -> letter label
-                                          +--  30-frame landmark buffer                }
-                                                  |                                       word ensemble (button)
-                                                  +-- Conv1D-Small  (npz, numpy)       }       -> word label
-                                                  +-- GRU-Small     (npz, numpy)       }
+                                          +-- MobileNetV3-Small (TFLite FP32)
+                                          +-- Landmark MLP (optional, npz/tflite)
+                                          +-- 30-frame landmark buffer
+                                                   |
+                                                   +-- Conv1D-Small (npz, numpy)
+                                                   +-- GRU-Small    (npz, numpy)
 ```
 
-Web UI on `localhost:8080` with three modes:
+Main entrypoint: `python -m gesturebridge.app`
 
-- **Read.** Live camera, letter ensemble label, TTS playback. Includes a "Capture Word (1 s)" button that buffers 30 landmark frames and reports top-5 WLASL-100 predictions with confidence.
-- **Speech-to-sign.** Two-step record button, offline Vosk on the C270 mic. Returns word-level video clips for known glosses (`hello`, `thanks`, `yes`, `no`, `help`, plus aliases) and falls back to letter spelling for any out-of-vocabulary word.
-- **Trainer.** Random target letter, spoken true or false feedback.
+Supported flags:
 
-An on-board ML model on the ESP32 (XIAO ESP32S3 + Edge Impulse hand classifier) emits `Hand: …` / `Empty: …` over USB serial; the Pi gates the heavy pipeline on this signal so power stays low when no one is signing.
+- `--run-main`: run camera loop + web UI.
+- `--run-daemon`: run standby daemon (serial wake-trigger).
+- `--benchmark-asl29`: benchmark letter runtime.
+- `--demo`: synthetic controller demo path.
+- `--camera-index N`: override camera index.
+- `--speech "..."`: inject one utterance into speech-to-sign flow at startup.
 
-## Reproduction
+## Quick Start
+
+### 1) Development environment (training/evaluation workstation)
 
 ### Letter pipeline (29-class alphabet)
 
 ```bash
-# Dataset
+python3 -m venv .venv311
+source .venv311/bin/activate
+pip install -e ".[dev,ml,speech]"
+```
+
+### 2) Pi runtime environment (inference-focused)
+
+`pyproject.toml` requires Python `>=3.10`; this project is validated around Python 3.11.  
+Python 3.13 is explicitly blocked in runtime and redirected to `.venv311` if present.
+
+```bash
+python3 -m venv .venv311
+source .venv311/bin/activate
+pip install -e ".[speech]"
+pip install opencv-python ai_edge_litert==2.1.4 mediapipe==0.10.18
+```
+
+### 3) Download required runtime assets
+
+```bash
+# Offline speech model
+bash scripts/fetch_vosk_small.sh
+
+# Optional word-level clip assets used by speech-to-sign mode
+bash scripts/fetch_word_clips.sh
+```
+
+### 4) Start the app
+
+```bash
+# Auto-selects daemon mode when serial device exists; otherwise run-main
+bash start_gesturebridge.sh
+
+# Or run explicitly
+python -m gesturebridge.app --run-main --camera-index 0
+```
+
+Open `http://127.0.0.1:8080`.
+
+## Reproduction Pipelines
+
+### ASL29 (letters)
+
+```bash
+# Download dataset
 kaggle datasets download grassknoted/asl-alphabet
 
-# Contiguous split (fixes frame-leakage bug from the Kaggle naive split)
+# Build contiguous split to avoid leakage
 python scripts/prepare_asl29.py --split-mode contiguous
 
-# Train sweep on a CUDA box (~25 min on RTX 4090)
+# Train MobileNetV3 sweep (typically CUDA box / Vast.ai)
 bash scripts/vastai_train.sh
 
-# Train the landmark MLP (CPU, under 5 min)
+# Train landmark MLP head
 python scripts/train_landmark_mlp.py
 
-# Evaluate the ensemble
+# Evaluate ensemble
 python scripts/eval_ensemble.py \
   --mobilenet artifacts/asl29/tflite/model_fp32.tflite \
   --landmark-mlp artifacts/asl29/landmark_mlp/landmark_mlp.npz \
   --split-csv data/asl29/splits/test.csv
 ```
 
-### Word pipeline (WLASL-100, dynamic signs)
+Useful companion scripts:
+
+- `scripts/precrop_dataset.py`
+- `scripts/extract_landmarks.py`
+- `scripts/train_mobilenetv3_asl29.py`
+- `scripts/evaluate_mobilenetv3_asl29.py`
+- `scripts/eval_split.py`
+- `scripts/eval_holdout_test.py`
+- `scripts/export_tflite_int8_asl29.py`
+- `scripts/benchmark_tflite_rpi.py`
+- `scripts/run_realtime_asl29.py`
+
+### WLASL-100 (word-level)
 
 ```bash
-# 1. Pre-extracted MediaPipe Holistic landmarks, MIT licensed
+# 1) Pull pre-extracted holistic landmarks
 kaggle datasets download chinhde/wlasl-300-landmarks -p data/wlasl_external/
 unzip data/wlasl_external/wlasl-300-landmarks.zip -d data/wlasl_external/
 
-# 2. Convert to our (T, 63) tensor format with right-hand selection
-#    + chirality flip when only the left hand is detected.
+# 2) Convert to GestureBridge format (N, 30, 63)
 python scripts/convert_kaggle_wlasl100_landmarks.py
-# → data/wlasl100_kaggle/landmarks.npz, shape (12888, 30, 63)
 
-# 3. Train Conv1D-Small + GRU-Small on the same data (CPU is fine)
+# 3) Train both heads
 python scripts/train_wlasl100_pose.py --arch conv1d_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
+
 python scripts/train_wlasl100_pose.py --arch gru_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
 
-# 4. Sanity-check on a single clip (CLI)
-python scripts/predict_word_clip.py path/to/some_clip.mp4
-
-# 5. Run the full app with both pipelines wired in
-python -m gesturebridge.app --run-main --camera-index 0
-# Boot log shows: "WLASL-100 ensemble attached (Conv1D+GRU, 100 classes)"
-# → http://127.0.0.1:8080, Read tab, "Capture Word (1s)" button
+# 4) Single-clip sanity check
+python scripts/predict_word_clip.py path/to/clip.mp4
 ```
 
-### Deploy to the Pi
+Notes:
+
+- `scripts/train_wlasl100_pose.py` defaults to `data/wlasl100/landmarks.npz` and `data/wlasl100/labels.txt` if arguments are omitted.
+- Runtime auto-attaches word models only when files exist under `artifacts/wlasl100/` (Conv1D mandatory; GRU optional for ensemble).
+
+## Runtime Configuration
+
+Most defaults live in `src/gesturebridge/config.py` (`SystemConfig` dataclasses).
+
+Key paths:
+
+- Letter model: `artifacts/asl29/tflite/model_fp32.tflite`
+- Letter labels: `artifacts/asl29/labels.txt`
+- Hand landmarker: `artifacts/mediapipe/hand_landmarker.task`
+- Word models: `artifacts/wlasl100/conv1d_small.npz` and `artifacts/wlasl100/gru_small.npz`
+- Vosk model: `artifacts/vosk/vosk-model-small-en-us-0.15`
+- UI sign assets: `assets/signs`
+- UI word clips: `assets/word_clips`
+
+Environment variables:
+
+- `GESTUREBRIDGE_FORCE_DAEMON=1`: force daemon mode in `start_gesturebridge.sh`.
+- `GESTUREBRIDGE_VOSK_INPUT_DEVICE`: override audio input device for Vosk capture.
+- `GESTUREBRIDGE_VOSK_SKIP_PULSE=1`: skip Pulse/PipeWire preference logic.
+- `GESTUREBRIDGE_DISABLE_TTS=1`: disable speech output.
+- `FETCH_VOSK_FORCE_PROXY=1`: keep proxy env while downloading Vosk model.
+
+## Deployment
+
+### Rsync deployment helper
 
 ```bash
 PI_PASS=<password> bash scripts/deploy_to_pi.sh
 ```
 
-## Repository layout
+Supported env knobs in deploy script: `PI_USER`, `PI_HOST`, `PI_PATH`, `PI_PASS`.
 
-```
-src/gesturebridge/         core app (pipelines, web UI, daemon, config)
-  pipelines/
-    asl29_tflite.py        letter MobileNet runtime + MediaPipe crop
-    landmark_classifier.py letter landmark MLP head (sklearn → npz)
-    word_classifier.py     WLASL-100 Conv1D, pure-numpy Pi inference
-    word_ensemble.py       Conv1D + GRU ensemble + numpy GRU forward
-scripts/                   training, eval, export, deploy, diagnostics
-  prepare_wlasl100.py             WLASL video downloader (direct + yt-dlp)
-  extract_wlasl_landmarks.py      video → (N, 30, 63) MediaPipe tensor
-  convert_kaggle_wlasl100_landmarks.py  pre-extracted Holistic → our format
-  train_wlasl100_pose.py          Conv1D / GRU training + npz export
-  predict_word_clip.py            CLI predictor for a single mp4
-artifacts/asl29/           letter outputs (tflite, landmark_mlp, eval JSONs)
-artifacts/wlasl100/        word outputs (conv1d_small.npz, gru_small.npz, demo_vocab.txt)
-data/asl29/                letter dataset split manifests
-data/wlasl100_kaggle/      word landmark tensor (gitignored)
-tests/                     pytest suite
-```
+### systemd units
 
-## Environment
+Templates are in `deploy/systemd/`:
 
-Python 3.11 on the Mac for development, training, and export. On the Pi the runtime uses `ai_edge_litert` and `mediapipe`; do not install full TensorFlow on the Pi because its protobuf dependency conflicts with mediapipe.
+- `gesturebridge-daemon.service`
+- `gesturebridge-main.service`
+
+Adjust `WorkingDirectory` and virtualenv path before installing on target.
+
+### Kiosk launcher
 
 ```bash
-# Mac side (development)
-python3 -m venv .venv311
-source .venv311/bin/activate
-pip install -e ".[dev,ml]"
-
-# Pi side (runtime only)
-pip install ai_edge_litert==2.1.4 mediapipe==0.10.18
+bash deploy/kiosk/open_kiosk.sh
+# windowed mode:
+KIOSK=0 bash deploy/kiosk/open_kiosk.sh
 ```
+
+## Repository Walkthrough
+
+```text
+src/gesturebridge/
+  app.py                    CLI entrypoint and runtime assembly
+  config.py                 system-wide dataclass config defaults
+  bootstrap.py              synthetic/demo controller bootstrap
+  devices/
+    xiao.py                 serial event parsing (Hand/Empty)
+    rpi.py
+  modes/
+    translate.py
+    learn.py
+  pipelines/
+    asl29_tflite.py         letter inference runtime + hand crop integration
+    hand_crop.py
+    landmark_classifier.py  landmark MLP head
+    word_classifier.py      Conv1D word model inference (numpy)
+    word_ensemble.py        Conv1D + GRU ensemble inference
+    asr.py                  simple ASR interface
+    vosk_stt.py             offline Vosk capture/transcribe utility
+    tts.py                  text-to-speech output
+  system/
+    main_runtime.py         camera loop, mode logic, speech/sign bridging
+    daemon.py               standby/wake process manager
+    mic_default.py          C270 microphone preference helpers
+  ui/
+    web.py                  HTTP server, UI page, JSON API
+
+scripts/
+  data prep, training, evaluation, export, deployment, diagnostics
+
+deploy/
+  systemd/                  service templates
+  kiosk/                    Chromium launcher
+
+tests/
+  test_daemon_serial.py
+  test_state_machine.py
+  test_translate_mode.py
+  test_learn_mode.py
+  test_training_pipeline.py
+```
+
+## Data and Artifact Policy
+
+This repository intentionally ignores most large/generated outputs:
+
+- `data/` is gitignored.
+- `artifacts/` is gitignored.
+- `assets/word_clips/*.mp4` is gitignored.
+
+Expect to generate or download these locally before running full functionality.
 
 ## Hardware
 
-Raspberry Pi 5 (8 GB), Logitech C270 USB webcam, USB speaker, ESP32-WROOM-32 with HC-SR501 PIR, 7-inch HDMI LCD. Powered from the Pi USB-C PSU.
+Typical deployment hardware:
+
+- Raspberry Pi 5 (8GB)
+- Logitech C270 webcam (video + microphone)
+- USB speaker
+- ESP32 serial wake-trigger node (emits `Hand:` / `Empty:` style events)
+- HDMI display (kiosk optional)
+
+## Testing
+
+```bash
+pytest
+```
+
+Test suite covers daemon state transitions, mode logic, and parts of the training pipeline.
+
+## Citations
+
+This project builds on and uses the following resources. Please cite the
+upstream datasets and models if you reuse this work.
+
+### Datasets
+
+- **WLASL** (word-level ASL recognition):
+  Li, D., Rodriguez, C., Yu, X., & Li, H. (2020). *Word-level Deep Sign
+  Language Recognition from Video: A New Large-scale Dataset and Methods
+  Comparison.* WACV 2020.
+  Repo: <https://github.com/dxli94/WLASL>. License: C-UDA (computational
+  use only).
+- **WLASL-100 pre-extracted MediaPipe Holistic landmarks**:
+  Kaggle dataset *chinhde/wlasl-300-landmarks* (despite the name, ships
+  the canonical WLASL-100 split). License: MIT.
+  <https://www.kaggle.com/datasets/chinhde/wlasl-300-landmarks>
+- **ASL Alphabet (29-class)**: Kaggle dataset
+  *grassknoted/asl-alphabet*.
+  <https://www.kaggle.com/datasets/grassknoted/asl-alphabet>
+- **Word reference clips** (`assets/word_clips/`): aslbricks.org direct
+  MP4s, signbsl.com Start ASL mirror, plus selected clips mined from the
+  WLASL pool. Educational / academic use only — not redistributed.
+  Per-clip provenance: `assets/word_clips/SOURCES.md`.
+
+### Models and libraries
+
+- **MediaPipe Hands** (21-landmark hand tracking):
+  Zhang, F., Bazarevsky, V., Vakunov, A., et al. (2020). *MediaPipe
+  Hands: On-device Real-time Hand Tracking.* CVPR Workshop.
+  <https://google.github.io/mediapipe/solutions/hands>
+- **MobileNetV3-Small** (letter image classifier backbone):
+  Howard, A., Sandler, M., Chu, G., et al. (2019). *Searching for
+  MobileNetV3.* ICCV 2019. arXiv:1905.02244.
+- **Vosk** (offline speech recognition):
+  Alpha Cephei. <https://alphacephei.com/vosk/>. Model used:
+  `vosk-model-small-en-us-0.15`.
+- **TensorFlow Lite + XNNPACK** (FP32 letter inference on Pi 5).
+  <https://www.tensorflow.org/lite> · <https://github.com/google/XNNPACK>
+- **pyttsx3** (cross-platform offline TTS).
+  <https://github.com/nateshmbhat/pyttsx3>
+- **NumPy / OpenCV / TensorFlow / scikit-learn** for training-time work
+  on Mac; **numpy / ai_edge_litert / mediapipe / opencv-python** for the
+  Pi inference path.
+
+### Phase 2 design notes
+
+- The Conv1D-Small / GRU-Small temporal heads on landmark sequences are
+  small custom architectures. Pose-only WLASL baselines in the
+  literature (e.g. Pose-TGCN, Li et al. 2020, and ASL Citizen baselines,
+  Desai et al. NeurIPS 2023) report 60–70 % top-1 / 85–90 % top-5 on
+  WLASL-100; our ensemble lands in the lower end of that band
+  (test top-1 57.7 %, top-5 87.0 %).
+- ASL Citizen: Desai, A., Berger, L., Minakov, F. P., et al. (2023).
+  *ASL Citizen: A Community-Sourced Dataset for Advancing Isolated Sign
+  Language Recognition.* NeurIPS 2023 Datasets & Benchmarks.
+  <https://www.microsoft.com/en-us/research/project/asl-citizen/>

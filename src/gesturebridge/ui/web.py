@@ -760,15 +760,29 @@ async function refresh(){
     }
     if(s.word_prediction && Array.isArray(s.word_prediction.top)){
       const top = s.word_prediction.top;
-      const html = top.map((p, i)=>{
+      const status = s.word_prediction.status || 'confident';
+      const thr = Number(s.word_prediction.threshold || 0);
+      const top1prob = top.length ? top[0].prob : 0;
+      const isAmbiguous = (status === 'ambiguous');
+      // Banner: confident vs ambiguous. Confident = green check on top-1.
+      // Ambiguous = amber "Did you mean...?" with a top-3 list.
+      const bannerLabel = isAmbiguous ? 'Ambiguous — did you mean…?'
+                                      : `${top[0]?.label ?? '?'} (top-1)`;
+      const bannerColor = isAmbiguous ? '#f4a261' : '#22c55e';
+      const bannerIcon  = isAmbiguous ? '⚠' : '✓';
+      const banner = `<div style="display:flex;align-items:center;gap:8px;font-size:15px;color:${bannerColor};margin-bottom:6px"><span style="font-weight:700">${bannerIcon}</span><span>${bannerLabel}</span><span style="color:#9db0cf;font-size:11px;margin-left:auto">conf ${(top1prob*100).toFixed(0)}% • thr ${(thr*100).toFixed(0)}%</span></div>`;
+      const limit = isAmbiguous ? 3 : 5;
+      const rows = top.slice(0, limit).map((p, i)=>{
         const pct = Math.round(p.prob*100);
         const bar = '█'.repeat(Math.max(0, Math.round(p.prob*30)));
-        return `<div style="display:flex;gap:8px;align-items:baseline;font-size:14px"><b style="min-width:24px">#${i+1}</b><span style="min-width:120px">${p.label}</span><span style="color:#9db0cf;min-width:42px">${pct}%</span><span style="color:#7fa3ff">${bar}</span></div>`;
+        const accent = (i === 0 && !isAmbiguous) ? '#22c55e' : '#7fa3ff';
+        return `<div style="display:flex;gap:8px;align-items:baseline;font-size:14px"><b style="min-width:24px">#${i+1}</b><span style="min-width:120px">${p.label}</span><span style="color:#9db0cf;min-width:42px">${pct}%</span><span style="color:${accent}">${bar}</span></div>`;
       }).join('');
       const pred = document.getElementById('wordPrediction');
-      if(pred) pred.innerHTML = html;
+      if(pred) pred.innerHTML = banner + rows;
       if(wordStatus && !wordCapturing){
-        wordStatus.textContent = `Last capture: ${s.word_prediction.elapsed_s}s`;
+        const tag = isAmbiguous ? '⚠ ambiguous' : '✓ confident';
+        wordStatus.textContent = `Last capture: ${s.word_prediction.elapsed_s}s — ${tag}`;
       }
     }
   }catch(err){
@@ -829,6 +843,17 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 self.end_headers()
                 self.wfile.write(html)
                 return
+            if self.path == "/api/diagnostics":
+                # Subsystem health snapshot (Phase 2 IT-9). Cheap to compute,
+                # safe under load — meant to be hit during debug sessions:
+                #   curl -s http://127.0.0.1:8080/api/diagnostics | python3 -m json.tool
+                try:
+                    payload = runtime.diagnostics()
+                except Exception as exc:
+                    payload = {"error": str(exc)}
+                self._send_json(payload)
+                return
+
             if self.path == "/api/state":
                 latest = runtime.last_response or {}
                 latest_passed = bool(latest.get("passed", False))

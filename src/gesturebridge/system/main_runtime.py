@@ -70,22 +70,61 @@ NATO_TO_LETTER: dict[str, str] = {
 # Phase 2: word-level speech-to-sign. Map spoken-word tokens to a video clip
 # under assets/word_clips/. When a token hits this map AND the clip file
 # exists at runtime, the response uses the clip instead of letter-spelling.
-# Aliases (e.g. "thanks" -> thank_you) live here so we don't have to invent
-# multiple clip files for synonyms.
+# Aliases (e.g. "thanks" -> thank_you, "mom" -> mother) live here so we
+# don't have to invent multiple clip files for synonyms.
 WORD_CLIP_MAP: dict[str, str] = {
-    "hello": "hello.mp4",
-    "hi": "hello.mp4",
-    "hey": "hello.mp4",
-    "thanks": "thank_you.mp4",
-    "thank": "thank_you.mp4",
-    "thank_you": "thank_you.mp4",
-    "thankyou": "thank_you.mp4",
-    "yes": "yes.mp4",
-    "yeah": "yes.mp4",
-    "yep": "yes.mp4",
-    "no": "no.mp4",
-    "nope": "no.mp4",
+    # Greetings / courtesies
+    "hello": "hello.mp4", "hi": "hello.mp4", "hey": "hello.mp4",
+    "thanks": "thank_you.mp4", "thank": "thank_you.mp4",
+    "thank_you": "thank_you.mp4", "thankyou": "thank_you.mp4",
+    "yes": "yes.mp4", "yeah": "yes.mp4", "yep": "yes.mp4",
+    "no": "no.mp4", "nope": "no.mp4",
+    "please": "please.mp4",
     "help": "help.mp4",
+    "more": "more.mp4",
+    # Pronouns / determiners
+    "my": "my.mp4", "mine": "my.mp4",
+    "you": "you.mp4", "your": "you.mp4",
+    # Family
+    "family": "family.mp4",
+    "mother": "mother.mp4", "mom": "mother.mp4", "mommy": "mother.mp4",
+    "father": "father.mp4", "dad": "father.mp4", "daddy": "father.mp4",
+    "friend": "friend.mp4",
+    # Verbs
+    "drink": "drink.mp4",
+    "eat": "eat.mp4",
+    "walk": "walk.mp4",
+    "work": "work.mp4",
+    "dance": "dance.mp4",
+    "play": "play.mp4",
+    "love": "love.mp4",
+    "like": "like.mp4",
+    "enjoy": "enjoy.mp4",
+    "finish": "finish.mp4", "finished": "finish.mp4", "done": "finish.mp4",
+    # Objects / food
+    "book": "book.mp4",
+    "chair": "chair.mp4",
+    "table": "table.mp4",
+    "bed": "bed.mp4",
+    "shirt": "shirt.mp4",
+    "food": "food.mp4",
+    "water": "water.mp4",
+    "orange": "orange.mp4",
+    "dog": "dog.mp4",
+    "school": "school.mp4",
+    # Adjectives / descriptors
+    "good": "good.mp4",
+    "bad": "bad.mp4",
+    "happy": "happy.mp4",
+    "sad": "sad.mp4",
+    "old": "old.mp4",
+    "wrong": "wrong.mp4",
+    "many": "many.mp4",
+    "deaf": "deaf.mp4",
+    # Time / identity
+    "time": "time.mp4",
+    "day": "day.mp4",
+    "name": "name.mp4",
 }
 
 
@@ -122,6 +161,19 @@ class MainRuntime:
     _word_window_frames: int = field(default=30, init=False, repr=False)
     _word_last_prediction: dict | None = field(default=None, init=False, repr=False)
     _word_capture_started_ts: float = field(default=0.0, init=False, repr=False)
+    # Confidence gating (T1-D). Loaded from artifacts/wlasl100/calibration.npz
+    # at boot. When the top-1 ensemble probability is below the threshold,
+    # `_finalize_word_capture` marks the prediction status as "ambiguous"
+    # and the UI surfaces a top-3 fallback instead of a confident label.
+    _word_threshold: float = field(default=0.0, init=False, repr=False)
+    _word_calibration_meta: dict = field(default_factory=dict, init=False, repr=False)
+    # Health counters surfaced via /api/diagnostics. Each tick of the camera
+    # loop bumps `frames_processed`; if it stops moving, the loop is dead.
+    _frames_processed: int = field(default=0, init=False, repr=False)
+    _last_inference_ms: float = field(default=0.0, init=False, repr=False)
+    _last_inference_ts: float = field(default=0.0, init=False, repr=False)
+    _camera_loop_alive: bool = field(default=False, init=False, repr=False)
+    _runtime_started_ts: float = field(default_factory=monotonic, init=False, repr=False)
     _vosk_stt: object | None = field(default=None, init=False, repr=False)
     _vosk_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _vosk_recording: bool = field(default=False, init=False, repr=False)
@@ -390,12 +442,28 @@ class MainRuntime:
         # Word-mode capture: while _word_capturing is True, accumulate
         # normalized 21-landmark vectors per frame. When the buffer hits
         # _word_window_frames, fire the WordClassifier and stash result.
-        if self._word_capturing and self.word_classifier is not None:
-            self._maybe_capture_word_frame(result)
-            response["word_capturing"] = True
-            response["word_buffer_filled"] = len(self._word_buffer)
-        if self._word_last_prediction is not None:
-            response["word_prediction"] = self._word_last_prediction
+        # Belt-and-suspenders: a regression in word capture must NOT take
+        # down the letter pipeline. The internal try/except in
+        # `_maybe_capture_word_frame` is the first line; this one catches
+        # anything that escapes (e.g. an attribute access on a corrupt
+        # `_word_last_prediction`) so the camera loop keeps spinning.
+        try:
+            if self._word_capturing and self.word_classifier is not None:
+                self._maybe_capture_word_frame(result)
+                response["word_capturing"] = True
+                response["word_buffer_filled"] = len(self._word_buffer)
+            if self._word_last_prediction is not None:
+                response["word_prediction"] = self._word_last_prediction
+        except Exception as exc:
+            print(f"[main_runtime] word block fatal in process_camera_frame: {exc}", flush=True)
+            self._word_capturing = False
+            self._word_buffer = []
+            self._word_last_prediction = None
+
+        # Health counters for /api/diagnostics.
+        self._frames_processed += 1
+        self._last_inference_ms = float(getattr(result, "latency_ms", 0.0) or 0.0)
+        self._last_inference_ts = monotonic()
 
         if self.mode == "read":
             now = monotonic()
@@ -405,7 +473,7 @@ class MainRuntime:
                 or now - self.last_spoken_ts >= cooldown
             )
             if should_speak and stable_label != "nothing":
-                self.latest_tts = self.tts.speak(stable_label)
+                self.latest_tts = self._safe_speak(stable_label)
                 self.last_spoken_label = stable_label
                 self.last_spoken_ts = now
             response["tts"] = self.latest_tts
@@ -420,7 +488,7 @@ class MainRuntime:
                 or now - self.last_learn_feedback_ts >= cooldown
             )
             if should_speak_feedback:
-                self.latest_tts = self.tts.speak(learn_feedback)
+                self.latest_tts = self._safe_speak(learn_feedback)
                 self.last_learn_feedback = learn_feedback
                 self.last_learn_feedback_ts = now
             response["target"] = self.learn_target
@@ -429,39 +497,103 @@ class MainRuntime:
             response["tts"] = self.latest_tts
         return response
 
+    def _safe_speak(self, text: str) -> str:
+        """Wrap `self.tts.speak(text)` so an espeak/pyttsx3 hang or crash
+        on Linux can't stall the camera loop. Honour
+        `GESTUREBRIDGE_DISABLE_TTS=1` to skip TTS entirely (useful for
+        headless tests + as a workaround if we ever hit a hang in the
+        wild)."""
+        if os.environ.get("GESTUREBRIDGE_DISABLE_TTS", "").strip() in ("1", "true", "yes"):
+            return text
+        try:
+            return self.tts.speak(text)
+        except Exception as exc:
+            print(f"[main_runtime] tts.speak failed: {exc}", flush=True)
+            return text
+
     def get_latest_frame_jpeg(self) -> bytes:
         return self.latest_frame_jpeg
+
+    def diagnostics(self) -> dict[str, object]:
+        """Subsystem health snapshot, served at GET /api/diagnostics.
+
+        Designed so that one curl from another shell tells us at a glance
+        whether the camera loop is still ticking, the model heads are
+        attached, and which mode is active. Use for next-time debugging.
+        """
+        now = monotonic()
+        last_infer_age_s = (now - self._last_inference_ts) if self._last_inference_ts > 0 else None
+        return {
+            "uptime_s": round(now - self._runtime_started_ts, 2),
+            "current_mode": self.mode,
+            "camera_loop_alive": bool(self._camera_loop_alive),
+            "frames_processed": int(self._frames_processed),
+            "last_inference_ms": round(float(self._last_inference_ms), 2),
+            "last_inference_age_s": (None if last_infer_age_s is None else round(last_infer_age_s, 2)),
+            "letter_classifier_loaded": True,  # asl29 TFLite is required to boot
+            "landmark_classifier_loaded": self.landmark_classifier is not None,
+            "word_classifier_loaded": self.word_classifier is not None,
+            "vosk_recording": self.is_vosk_recording(),
+            "tts_disabled": os.environ.get("GESTUREBRIDGE_DISABLE_TTS", "").strip() in ("1", "true", "yes"),
+            "word_capturing": bool(self._word_capturing),
+            "word_buffer_filled": len(self._word_buffer),
+            "has_word_clips_dir": bool(getattr(self.config.web, "word_clips_dir", None)) and self.config.web.word_clips_dir.exists(),
+        }
 
     # ------------------------------------------------------------------
     # Word mode (Phase 2 IT-4): buffered camera capture + WordClassifier
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _normalize_landmarks_63(landmarks_21x3: np.ndarray) -> np.ndarray:
-        """Match scripts/extract_wlasl_landmarks._normalize_landmarks: wrist
-        origin, max-abs-distance scale, flatten to 63-d float32."""
+    def _normalize_landmarks_63(landmarks_21x3: np.ndarray) -> np.ndarray | None:
+        """Wrist-origin, max-abs-distance-scaled, flattened 63-d float32.
+
+        Returns None on NaN/Inf input (so the caller skips this frame
+        rather than poisoning the model with non-finite values that would
+        raise inside the Conv1D forward pass and tear down the camera
+        loop). Mirrors `scripts/convert_kaggle_wlasl100_landmarks.normalize_landmarks`.
+        """
+        if not np.isfinite(landmarks_21x3).all():
+            return None
         wrist = landmarks_21x3[0:1]
         rel = landmarks_21x3 - wrist
         scale = float(np.linalg.norm(rel[:, :2], axis=1).max())
-        if scale < 1e-6:
+        if not np.isfinite(scale) or scale < 1e-6:
             scale = 1.0
-        return (rel / scale).astype(np.float32).reshape(-1)
+        out = (rel / scale).astype(np.float32).reshape(-1)
+        if not np.isfinite(out).all():
+            return None
+        return out
 
     def _maybe_capture_word_frame(self, infer_result) -> None:
-        # Bail if we don't have a useful landmark vector this frame —
-        # we still tick the buffer so the window length stays a fixed
-        # 1-second wallclock; missing-landmark frames repeat the last
-        # observation (matches training-time padding).
-        lm = getattr(infer_result, "landmarks", None)
-        if lm is not None and isinstance(lm, np.ndarray) and lm.shape == (21, 3):
-            self._word_buffer.append(self._normalize_landmarks_63(lm))
-        elif self._word_buffer:
-            self._word_buffer.append(self._word_buffer[-1])
-        else:
-            self._word_buffer.append(np.zeros(63, dtype=np.float32))
+        """Append one normalized 63-d vector to the rolling word buffer.
 
-        if len(self._word_buffer) >= self._word_window_frames:
-            self._finalize_word_capture()
+        Wrapped in try/except: any failure here is logged and resets the
+        capture state instead of propagating up into `process_camera_frame`
+        and tearing down the camera loop (which would silently kill the
+        web thread because it's `daemon=True`).
+        """
+        try:
+            lm = getattr(infer_result, "landmarks", None)
+            vec: np.ndarray | None = None
+            if lm is not None and isinstance(lm, np.ndarray) and lm.shape == (21, 3):
+                vec = self._normalize_landmarks_63(lm)
+            if vec is None:
+                # No usable landmark this frame: reuse last seen, or zeros.
+                if self._word_buffer:
+                    vec = self._word_buffer[-1]
+                else:
+                    vec = np.zeros(63, dtype=np.float32)
+            self._word_buffer.append(vec)
+
+            if len(self._word_buffer) >= self._word_window_frames:
+                self._finalize_word_capture()
+        except Exception as exc:
+            print(f"[main_runtime] word capture failed mid-frame: {exc}", flush=True)
+            # Reset to a clean state so subsequent frames in letter mode
+            # are not affected.
+            self._word_capturing = False
+            self._word_buffer = []
 
     def _finalize_word_capture(self) -> None:
         if self.word_classifier is None or not self._word_buffer:
@@ -475,17 +607,31 @@ class MainRuntime:
             print(f"[main_runtime] word_classifier.predict failed: {exc}", flush=True)
             preds = []
         elapsed = max(0.0, monotonic() - self._word_capture_started_ts)
+
+        # Gate: if top-1 prob is below the calibrated global threshold,
+        # mark this prediction "ambiguous" so the UI shows the top-3
+        # alternatives instead of a single confident label.
+        thr = self._word_threshold
+        top1_prob = float(preds[0][1]) if preds else 0.0
+        if thr > 0 and top1_prob < thr:
+            status = "ambiguous"
+            spoken_label: str | None = None
+        else:
+            status = "confident"
+            spoken_label = preds[0][0] if preds else None
+
         self._word_last_prediction = {
+            "status": status,
             "top": [{"label": lbl, "prob": float(p)} for lbl, p in preds],
             "elapsed_s": round(elapsed, 3),
             "buffered_frames": len(self._word_buffer),
+            "threshold": thr,
         }
-        # Optional: speak the top-1 if it's confident.
-        if preds and preds[0][1] >= 0.35:
-            try:
-                self.latest_tts = self.tts.speak(preds[0][0])
-            except Exception:
-                pass
+        # Speak only when the gate is "confident" AND prob clears the
+        # original 0.35 floor. Avoids speaking misleading guesses on
+        # ambiguous captures.
+        if spoken_label is not None and top1_prob >= 0.35:
+            self.latest_tts = self._safe_speak(spoken_label)
         self._word_capturing = False
         self._word_buffer = []
 
@@ -684,6 +830,8 @@ class MainRuntime:
         if not has_display:
             print("[main] DISPLAY is not set, running in headless camera mode")
 
+        # Mark loop alive for /api/diagnostics. Cleared in `finally`.
+        self._camera_loop_alive = True
         try:
             while True:
                 if self.mode == "speech_to_sign":
@@ -703,15 +851,42 @@ class MainRuntime:
                     cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.asl29.runtime.webcam_width)
                     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.asl29.runtime.webcam_height)
                     if not cap.isOpened():
-                        raise RuntimeError(f"Unable to open camera index {self.config.asl29.runtime.camera_index}")
+                        # Keep web/API alive even if camera is temporarily missing.
+                        self._set_placeholder_frame(
+                            "Camera unavailable",
+                            f"Cannot open camera index {self.config.asl29.runtime.camera_index}. "
+                            "Check USB/camera permissions, then reconnect.",
+                        )
+                        cap.release()
+                        cap = None
+                        sleep(0.5)
+                        continue
                 ok, frame = cap.read()
                 if not ok:
                     continue
                 now = monotonic()
-                infer_interval_s = max(self.config.asl29.runtime.inference_interval_ms, 0) / 1000.0
-                should_infer = self.last_response is None or (now - self.last_infer_ts) >= infer_interval_s
+                # Default cadence (300 ms = 3 fps) keeps Pi CPU low for letter
+                # mode. While the user is mid word-capture, ignore the throttle
+                # so the 30-frame buffer fills as fast as the pipeline can
+                # produce frames (~20 fps on Pi 5). Drops capture latency from
+                # ~14 s to ~1.5 s.
+                if self._word_capturing:
+                    should_infer = True
+                else:
+                    infer_interval_s = max(self.config.asl29.runtime.inference_interval_ms, 0) / 1000.0
+                    should_infer = self.last_response is None or (now - self.last_infer_ts) >= infer_interval_s
                 if should_infer:
-                    result = self.process_camera_frame(frame)
+                    try:
+                        result = self.process_camera_frame(frame)
+                    except Exception as exc:
+                        # A single corrupt frame must not kill the camera
+                        # loop (which would `daemon=True` the web thread
+                        # and produce the user-visible "fail to fetch").
+                        print(f"[main_runtime] frame inference failed: {exc}", flush=True)
+                        result = self.last_response or {
+                            "mode": self.mode, "label": "-", "stable_label": "-",
+                            "confidence": 0.0, "latency_ms": 0.0,
+                        }
                     self.last_response = result
                     self.last_infer_ts = now
                 else:
@@ -727,6 +902,7 @@ class MainRuntime:
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
         finally:
+            self._camera_loop_alive = False
             if cap is not None:
                 cap.release()
             if has_display:

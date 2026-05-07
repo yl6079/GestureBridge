@@ -63,10 +63,34 @@ if [ -f "$LOCAL_ARTIFACTS/mediapipe/hand_landmarker.task" ]; then
     "$REMOTE:$PI_PATH/artifacts/mediapipe/"
 fi
 
+# Phase 2 word recognition: ship the Conv1D + GRU npz weights, labels,
+# eval JSON, and demo vocabulary. Pure-numpy at runtime so no extra
+# Python deps on the Pi.
+if [ -d "$LOCAL_ARTIFACTS/wlasl100" ]; then
+  sshpass -p "$PI_PASS" rsync -az \
+    -e "ssh -o StrictHostKeyChecking=accept-new" \
+    --include="*.npz" --include="labels.txt" --include="eval.json" \
+    --include="demo_vocab.txt" --include="per_class_test*.json" \
+    --exclude="*" \
+    "$LOCAL_ARTIFACTS/wlasl100/" \
+    "$REMOTE:$PI_PATH/artifacts/wlasl100/"
+fi
+
+# Word reference clips for speech-to-sign visual output. Each clip is
+# small (≤6 MB); stays under license terms (not redistributed via git).
+if [ -d "$(dirname "$LOCAL_ARTIFACTS")/assets/word_clips" ]; then
+  sshpass -p "$PI_PASS" rsync -az \
+    -e "ssh -o StrictHostKeyChecking=accept-new" \
+    --include="*.mp4" --include="*.webm" --include="SOURCES.md" \
+    --exclude="*" \
+    "$(dirname "$LOCAL_ARTIFACTS")/assets/word_clips/" \
+    "$REMOTE:$PI_PATH/assets/word_clips/"
+fi
+
 echo "==> Verifying on Pi"
 sshpass -p "$PI_PASS" ssh "$REMOTE" \
-  "cd $PI_PATH && ls -lh artifacts/asl29/tflite/ artifacts/asl29/landmark_mlp/ 2>/dev/null artifacts/mediapipe/ 2>/dev/null"
+  "cd $PI_PATH && ls -lh artifacts/asl29/tflite/ artifacts/asl29/landmark_mlp/ 2>/dev/null && ls -lh artifacts/wlasl100/ 2>/dev/null && ls -lh assets/word_clips/ 2>/dev/null"
 
 echo
-echo "Done. Yizheng can restart the web app to pick up the new artifacts:"
-echo "  ssh $REMOTE 'cd $PI_PATH && python -m gesturebridge.app --run-main'"
+echo "Done. Restart the web app on the Pi to pick up the new artifacts:"
+echo "  ssh $REMOTE 'cd $PI_PATH && .venv311/bin/python -m gesturebridge.app --run-main'"
