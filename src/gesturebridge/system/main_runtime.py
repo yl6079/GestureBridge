@@ -161,6 +161,12 @@ class MainRuntime:
     _word_window_frames: int = field(default=30, init=False, repr=False)
     _word_last_prediction: dict | None = field(default=None, init=False, repr=False)
     _word_capture_started_ts: float = field(default=0.0, init=False, repr=False)
+    # Confidence gating (T1-D). Loaded from artifacts/wlasl100/calibration.npz
+    # at boot. When the top-1 ensemble probability is below the threshold,
+    # `_finalize_word_capture` marks the prediction status as "ambiguous"
+    # and the UI surfaces a top-3 fallback instead of a confident label.
+    _word_threshold: float = field(default=0.0, init=False, repr=False)
+    _word_calibration_meta: dict = field(default_factory=dict, init=False, repr=False)
     # Health counters surfaced via /api/diagnostics. Each tick of the camera
     # loop bumps `frames_processed`; if it stops moving, the loop is dead.
     _frames_processed: int = field(default=0, init=False, repr=False)
@@ -601,14 +607,31 @@ class MainRuntime:
             print(f"[main_runtime] word_classifier.predict failed: {exc}", flush=True)
             preds = []
         elapsed = max(0.0, monotonic() - self._word_capture_started_ts)
+
+        # Gate: if top-1 prob is below the calibrated global threshold,
+        # mark this prediction "ambiguous" so the UI shows the top-3
+        # alternatives instead of a single confident label.
+        thr = self._word_threshold
+        top1_prob = float(preds[0][1]) if preds else 0.0
+        if thr > 0 and top1_prob < thr:
+            status = "ambiguous"
+            spoken_label: str | None = None
+        else:
+            status = "confident"
+            spoken_label = preds[0][0] if preds else None
+
         self._word_last_prediction = {
+            "status": status,
             "top": [{"label": lbl, "prob": float(p)} for lbl, p in preds],
             "elapsed_s": round(elapsed, 3),
             "buffered_frames": len(self._word_buffer),
+            "threshold": thr,
         }
-        # Optional: speak the top-1 if it's confident.
-        if preds and preds[0][1] >= 0.35:
-            self.latest_tts = self._safe_speak(preds[0][0])
+        # Speak only when the gate is "confident" AND prob clears the
+        # original 0.35 floor. Avoids speaking misleading guesses on
+        # ambiguous captures.
+        if spoken_label is not None and top1_prob >= 0.35:
+            self.latest_tts = self._safe_speak(spoken_label)
         self._word_capturing = False
         self._word_buffer = []
 

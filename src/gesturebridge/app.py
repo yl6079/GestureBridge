@@ -223,6 +223,27 @@ def main() -> None:
             landmark_classifier=landmark_classifier,
             word_classifier=word_classifier,
         )
+        # Load calibration if present (T1-D). Sets a global confidence
+        # threshold used by `_finalize_word_capture` to flag low-confidence
+        # captures as "ambiguous" instead of guessing.
+        calib_path = Path("artifacts/wlasl100/calibration.npz")
+        if calib_path.exists():
+            try:
+                cal = np.load(calib_path, allow_pickle=True)
+                main_runtime._word_threshold = float(cal["global_threshold"][0])
+                main_runtime._word_calibration_meta = {
+                    "test_top1": float(cal["test_top1"][0]),
+                    "test_top5": float(cal["test_top5"][0]),
+                    "test_gated_coverage": float(cal["test_gated_coverage_global"][0]),
+                    "test_gated_precision": float(cal["test_gated_precision_global"][0]),
+                }
+                print(
+                    f"[app] confidence gate loaded: threshold={main_runtime._word_threshold:.3f} "
+                    f"(test gated: cov={main_runtime._word_calibration_meta['test_gated_coverage']:.2f}, "
+                    f"prec={main_runtime._word_calibration_meta['test_gated_precision']:.2f})"
+                )
+            except Exception as exc:
+                print(f"[app] calibration load failed (non-fatal): {exc}", flush=True)
         ui_state = UIState(status="active", mode=main_runtime.mode, target=main_runtime.learn_target)
         web = build_web_server(cfg.web.host, cfg.web.port, main_runtime, ui_state)
         web_thread = Thread(target=web.serve_forever, daemon=True)
