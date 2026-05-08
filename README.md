@@ -395,16 +395,3 @@ upstream datasets and models if you reuse this work.
 - **NumPy / OpenCV / TensorFlow / scikit-learn** for training-time work
   on Mac; **numpy / ai_edge_litert / mediapipe / opencv-python** for the
   Pi inference path.
-
-### Phase 2 design notes
-
-- The Conv1D-Small / GRU-Small temporal heads on landmark sequences are
-  small custom architectures. Pose-only WLASL baselines in the
-  literature (e.g. Pose-TGCN, Li et al. 2020, and ASL Citizen baselines,
-  Desai et al. NeurIPS 2023) report 60–70 % top-1 / 85–90 % top-5 on
-  WLASL-100; our ensemble lands in the lower end of that band
-  (test top-1 57.7 %, top-5 87.0 %).
-- ASL Citizen: Desai, A., Berger, L., Minakov, F. P., et al. (2023).
-  *ASL Citizen: A Community-Sourced Dataset for Advancing Isolated Sign
-  Language Recognition.* NeurIPS 2023 Datasets & Benchmarks.
-  <https://www.microsoft.com/en-us/research/project/asl-citizen/>
