@@ -212,17 +212,7 @@ python scripts/eval_ensemble.py \
   --split-csv data/asl29/splits/test.csv
 ```
 
-Useful companion scripts:
-
-- `scripts/precrop_dataset.py`
-- `scripts/extract_landmarks.py`
-- `scripts/train_mobilenetv3_asl29.py`
-- `scripts/evaluate_mobilenetv3_asl29.py`
-- `scripts/eval_split.py`
-- `scripts/eval_holdout_test.py`
-- `scripts/export_tflite_int8_asl29.py`
-- `scripts/benchmark_tflite_rpi.py`
-- `scripts/run_realtime_asl29.py`
+See `scripts/` for the data-prep, training, export, and evaluation helpers used by the commands above.
 
 ### WLASL-100 (word-level)
 
