@@ -14,7 +14,7 @@ UI is a local web app on `localhost:8080` with three modes: Read (letter recogni
 
 ## Results
 
-### Main: Letter recognition (29-class ASL alphabet)
+### Letter recognition (29-class)
 
 The headline pipeline. Ensemble of MobileNetV3-Small (TFLite FP32 on Pi) and a 21-landmark MLP head, both fed by a single MediaPipe HandLandmarker pass. Honest 80 / 10 / 10 contiguous split, no frame leakage.
 
@@ -28,7 +28,7 @@ The headline pipeline. Ensemble of MobileNetV3-Small (TFLite FP32 on Pi) and a 2
 
 **On Raspberry Pi 5: ~37.6 ms / frame mean** (10-run benchmark) for hand-present inference, ~9 ms when no hand is detected and the pipeline short-circuits to `"nothing"`. Letter MobileNet alone at the synthetic-input benchmark on Pi: 4.5 ms avg, 6.1 ms p95 (i.e. the ensemble compute is dominated by MediaPipe, not the classifier).
 
-### Three latent training bugs we found and fixed
+### Training-pipeline bugs and fixes
 
 These are the engineering meat of the project; each was a multi-percentage-point silent error in the prior baseline.
 
@@ -36,7 +36,7 @@ These are the engineering meat of the project; each was a multi-percentage-point
 2. **Invalid left-right augmentation** for chirality-sensitive letters. ASL fingerspelling depends on which hand the orientation references; mirror flips silently corrupt training signal for several glyphs. Fix: remove random flip; keep mild crop-pad / hue jitter only.
 3. **Train / inference distribution mismatch.** Kaggle frames are tight 200×200 crops of an isolated hand; deployment frames are full-resolution webcam captures. Fix: front-load a MediaPipe HandLandmarker crop with 1.2× padding so deployment images match training distribution.
 
-### Hardware-induced trade-offs (the FP32 / camera-resolution choice)
+### Hardware trade-offs
 
 We deliberately ship FP32 letter inference because INT8 post-training quantization collapsed accuracy from 0.802 → 0.218 (table above) — calibration on the production distribution would require a longer effort than the project allowed. To keep FP32 inference inside the Pi 5's per-frame compute budget, the camera capture pipeline is run at:
 
@@ -50,7 +50,7 @@ This is a real precision-vs-latency tradeoff: a higher-resolution camera path wi
 
 The reverse direction: spoken English in (offline Vosk small-en model on the C270 mic), visual sign output. **80 reference clips covering ~115 spoken-word tokens** including verb-conjugation and family-noun aliases (e.g. `going / went → go`, `told / telling → tell`, `mom → mother`, `done → finish`). Out-of-vocabulary words fall back to letter-by-letter fingerspelling. End-to-end ~1-2 s + audio length.
 
-## Extension: Word recognition (WLASL-100)
+## Word recognition (WLASL-100)
 
 Pose-only sequence classification on top of the existing MediaPipe stream — no new hardware, no new accelerator, ships as **pure numpy** on the Pi.
 
@@ -87,13 +87,13 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 
 `scripts/calibrate_word_ensemble.py` reproduces the threshold; the runtime auto-loads `artifacts/wlasl100/calibration.npz` if present.
 
-### Honest limits of the extension
+### Limitations
 
 - **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 % — anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation in time for this report; that remains future work.
 - **Camera-precision floor.** The 640 × 480 capture (mandated by the FP32 letter pipeline above) yields slightly degraded MediaPipe landmark precision compared to a 1280 × 720 capture. Higher resolution would likely improve word recognition but at the cost of letter inference latency.
 - **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1 — i.e. our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
 
-### Demo: dynamic-gesture capture path
+### Dynamic gesture capture
 
 Two short captures of dynamic gestures performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letters N and P are not in the WLASL-100 vocabulary, so these clips are not measuring word-recognition accuracy — they illustrate the end-to-end behavior of the dynamic path: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
 
