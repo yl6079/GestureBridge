@@ -8,9 +8,15 @@ Yizheng Lin, Shufeng Chen. ELEN 6908, Spring 2026.
 
 GestureBridge runs the entire vision and speech pipeline on a single Raspberry Pi 5 with a Logitech C270, no cloud, no network. The system recognizes the 29-class ASL alphabet from webcam frames at 37.6 ms per frame with 82.9 % test accuracy on a leakage-free split, after fixing three latent training-pipeline bugs (frame leakage, ASL-incorrect mirror augmentation, train/inference distribution mismatch). It also plays word-level reference clips for spoken English via offline Vosk speech recognition with letter-spelling fallback for out-of-vocabulary words. An external ESP32 with a coarse hand classifier gates the heavy pipeline so the camera and ML stack only run when someone is signing.
 
-A pose-only WLASL-100 word classifier is included as an optional extension; see the "Extension" section for results and limitations.
+A pose-only WLASL-100 word classifier is included as an optional extension; see the "Word recognition" section for results and limitations.
 
 UI is a local web app on `localhost:8080` with three modes: Read (letter recognition + TTS, plus a Capture Word button for the extension), Speech-to-sign (offline speech to sign clips), Trainer (letter practice with feedback).
+
+## Demo
+
+Full system walkthrough on YouTube (click to play):
+
+[![Full demo](https://img.youtube.com/vi/uCTLwS_5yoM/maxresdefault.jpg)](https://www.youtube.com/watch?v=uCTLwS_5yoM)
 
 ## Results
 
