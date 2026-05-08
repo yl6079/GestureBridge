@@ -93,6 +93,20 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 - **Camera-precision floor.** The 640 × 480 capture (mandated by the FP32 letter pipeline above) yields slightly degraded MediaPipe landmark precision compared to a 1280 × 720 capture. Higher resolution would likely improve word recognition but at the cost of letter inference latency.
 - **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1 — i.e. our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
 
+### Demo: dynamic-gesture capture path
+
+Two short captures of dynamic gestures performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letters N and P are not in the WLASL-100 vocabulary, so these clips are not measuring word-recognition accuracy — they illustrate the end-to-end behavior of the dynamic path: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
+
+Capture path on letter N:
+
+https://github.com/user-attachments/assets/ad9de90b-48d2-4eaa-b123-0e8039870dfa
+
+Capture path on letter P:
+
+https://github.com/user-attachments/assets/d89c760c-5dcc-45b2-9fbd-a53c7051c7f8
+
+Other demos (letter recognition, speech-to-sign, Learner mode) are included in the project's presentation video.
+
 ## Runtime Architecture
 
 ```
