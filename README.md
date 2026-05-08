@@ -50,7 +50,7 @@ We deliberately ship FP32 letter inference because INT8 post-training quantizati
 - **`inference_interval_ms = 300`** (≈ 3 fps inference cadence) by default. The camera grabber spins faster, but the heavy stack only runs every ~300 ms, leaving thermal headroom on the Cortex-A76.
 - **`use_hand_crop = true`** so MediaPipe is the only source of full-frame compute; downstream MobileNet sees a 224 × 224 hand crop.
 
-This is a real precision-vs-latency tradeoff: a higher-resolution camera path with INT8 inference would extract finer hand detail, but accuracy was unacceptable. We optimize for honest FP32 accuracy at lower capture resolution. See `docs/hardware_tradeoff.md` for the detailed trade table.
+This is a real precision-vs-latency tradeoff: a higher-resolution camera path with INT8 inference would extract finer hand detail, but accuracy was unacceptable. We optimize for honest FP32 accuracy at lower capture resolution.
 
 ### Speech-to-sign
 
