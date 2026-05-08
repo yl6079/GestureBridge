@@ -6,18 +6,11 @@ Yizheng Lin, Shufeng Chen. ELEN 6908, Spring 2026.
 
 ## Project Overview
 
-GestureBridge is an edge-first ASL interaction system that runs entirely on-device (no cloud dependency).
+GestureBridge runs the entire vision and speech pipeline on a single Raspberry Pi 5 with a Logitech C270, no cloud, no network. The system recognizes the 29-class ASL alphabet from webcam frames at 37.6 ms per frame with 82.9 % test accuracy on a leakage-free split, after fixing three latent training-pipeline bugs (frame leakage, ASL-incorrect mirror augmentation, train/inference distribution mismatch). It also plays word-level reference clips for spoken English via offline Vosk speech recognition with letter-spelling fallback for out-of-vocabulary words. An external ESP32 with a coarse hand classifier gates the heavy pipeline so the camera and ML stack only run when someone is signing.
 
-**Main contribution.** Real-time recognition of the 29-class ASL alphabet on a Raspberry Pi 5 + Logitech C270, achieving **82.9 % honest test accuracy** at ~37 ms per frame after identifying and fixing three latent training-pipeline bugs. Combined with offline speech-to-sign (Vosk + 80-clip reference vocabulary, letter fingerspelling fallback) and an ESP32 wake-trigger that gates the heavy pipeline based on a coarse hand classifier — the whole stack stays on the Pi at every layer.
+A pose-only WLASL-100 word classifier is included as an optional extension; see the "Extension" section for results and limitations.
 
-**Extension.** A WLASL-100 word-recognition branch from 30-frame hand-landmark sequences. Useful as a secondary capability and an honest reflection of where pose-only models top out; **not** the primary deliverable. See "Extensions" section.
-
-**Three UI modes** (local web app on `localhost:8080`):
-- **Read:** live letter recognition with TTS; "Capture Word (1 s)" button surfaces the extension's top-3 with a calibrated confidence gate.
-- **Speech-to-sign:** offline speech input to sign assets (80 word clips first, then letter fallback for OOV).
-- **Trainer:** interactive letter practice with immediate feedback.
-
-**Power-aware:** an external ESP32 with an Edge Impulse hand classifier emits `Hand` / `Empty` over USB serial; the Pi gates the heavy stack on this signal so the camera + ML pipeline only runs when someone is actually signing.
+UI is a local web app on `localhost:8080` with three modes: Read (letter recognition + TTS, plus a Capture Word button for the extension), Speech-to-sign (offline speech to sign clips), Trainer (letter practice with feedback).
 
 ## Results
 
