@@ -6,48 +6,92 @@ Yizheng Lin, Shufeng Chen. ELEN 6908, Spring 2026.
 
 ## Project Overview
 
-GestureBridge is an edge-first ASL interaction system that runs entirely on-device (no cloud dependency). It supports:
+GestureBridge runs the entire vision and speech pipeline on a single Raspberry Pi 5 with a Logitech C270, no cloud, no network. The system recognizes the 29-class ASL alphabet from webcam frames at 37.6 ms per frame with 82.9 % test accuracy on a leakage-free split, after fixing three latent training-pipeline bugs (frame leakage, ASL-incorrect mirror augmentation, train/inference distribution mismatch). It also plays word-level reference clips for spoken English via offline Vosk speech recognition with letter-spelling fallback for out-of-vocabulary words. An external ESP32 with a coarse hand classifier gates the heavy pipeline so the camera and ML stack only run when someone is signing.
 
-- **ASL29 letter recognition** (A-Z + `del` + `nothing` + `space`) from webcam frames.
-- **WLASL-100 word recognition** from 30-frame hand-landmark sequences.
-- **Three UI modes** in a local web app:
-  - **Read:** gesture to spoken output.
-  - **Speech-to-sign:** offline speech input to sign assets (word clips first, then letter fallback).
-  - **Trainer:** interactive letter practice with immediate feedback.
-- **Low-power standby orchestration** via serial wake signals (`Hand` / `Empty`) from an external ESP32 sensor node.
+A pose-only WLASL-100 word classifier is included as an optional extension; see the "Extension" section for results and limitations.
+
+UI is a local web app on `localhost:8080` with three modes: Read (letter recognition + TTS, plus a Capture Word button for the extension), Speech-to-sign (offline speech to sign clips), Trainer (letter practice with feedback).
 
 ## Results
 
-### Letter recognition (29-class ASL alphabet)
+### Main: Letter recognition (29-class ASL alphabet)
+
+The headline pipeline. Ensemble of MobileNetV3-Small (TFLite FP32 on Pi) and a 21-landmark MLP head, both fed by a single MediaPipe HandLandmarker pass. Honest 80 / 10 / 10 contiguous split, no frame leakage.
 
 | Model | Test accuracy | Notes |
 |---|---|---|
 | Original FP32 (leaky split) | 1.000 | Memorized; not useful |
 | Honest FP32 MobileNetV3-Small | 0.802 | First credible baseline |
 | Landmark MLP (detected hands) | 0.820 | 63-d MediaPipe vector |
-| **Ensemble** | **0.829** | +2.7 pp over MobileNet alone |
+| **Ensemble (deployed)** | **0.829** | +2.7 pp over MobileNet alone |
 | INT8 (Kaggle calibrated) | 0.218 | Distribution mismatch; do not deploy |
 
-On Raspberry Pi 5, full hand-present inference is ~37.6 ms mean (10 runs). Frames with no detected hand short-circuit at ~9 ms.
+**On Raspberry Pi 5: ~37.6 ms / frame mean** (10-run benchmark) for hand-present inference, ~9 ms when no hand is detected and the pipeline short-circuits to `"nothing"`. Letter MobileNet alone at the synthetic-input benchmark on Pi: 4.5 ms avg, 6.1 ms p95 (i.e. the ensemble compute is dominated by MediaPipe, not the classifier).
 
-### Word recognition (WLASL-100, dynamic signs)
+### Three latent training bugs we found and fixed
+
+These are the engineering meat of the project; each was a multi-percentage-point silent error in the prior baseline.
+
+1. **Frame leakage** from naive random split on sequential Kaggle frames. Adjacent frames from the same recording session ended up on both sides of the split, so the model "memorized" rather than generalized. Fix: contiguous-block split per class (`scripts/prepare_asl29.py`).
+2. **Invalid left-right augmentation** for chirality-sensitive letters. ASL fingerspelling depends on which hand the orientation references; mirror flips silently corrupt training signal for several glyphs. Fix: remove random flip; keep mild crop-pad / hue jitter only.
+3. **Train / inference distribution mismatch.** Kaggle frames are tight 200×200 crops of an isolated hand; deployment frames are full-resolution webcam captures. Fix: front-load a MediaPipe HandLandmarker crop with 1.2× padding so deployment images match training distribution.
+
+### Hardware-induced trade-offs (the FP32 / camera-resolution choice)
+
+We deliberately ship FP32 letter inference because INT8 post-training quantization collapsed accuracy from 0.802 → 0.218 (table above) — calibration on the production distribution would require a longer effort than the project allowed. To keep FP32 inference inside the Pi 5's per-frame compute budget, the camera capture pipeline is run at:
+
+- **640 × 480 resolution** (not the C270's 1280 × 720 max) — limits Pi-side decode + downscale work.
+- **`inference_interval_ms = 300`** (≈ 3 fps inference cadence) by default — the camera grabber spins faster, but the heavy stack only runs every ~300 ms, leaving thermal headroom on the Cortex-A76.
+- **`use_hand_crop = true`** so MediaPipe is the only source of full-frame compute; downstream MobileNet sees a 224 × 224 hand crop.
+
+This is a real precision-vs-latency tradeoff: a higher-resolution camera path with INT8 inference would extract finer hand detail, but accuracy was unacceptable. We optimize for honest FP32 accuracy at lower capture resolution. See `docs/hardware_tradeoff.md` for the detailed trade table.
+
+### Speech-to-sign
+
+The reverse direction: spoken English in (offline Vosk small-en model on the C270 mic), visual sign output. **80 reference clips covering ~115 spoken-word tokens** including verb-conjugation and family-noun aliases (e.g. `going / went → go`, `told / telling → tell`, `mom → mother`, `done → finish`). Out-of-vocabulary words fall back to letter-by-letter fingerspelling. End-to-end ~1-2 s + audio length.
+
+## Extension: Word recognition (WLASL-100)
+
+Pose-only sequence classification on top of the existing MediaPipe stream — no new hardware, no new accelerator, ships as **pure numpy** on the Pi.
+
+This is the project's stretch contribution, not its primary deliverable. We ship it because the ensemble + calibrated gating are interesting in their own right, but it should be read as an honest exploration of where landmark-only ASL recognition tops out under our hardware constraints — not as a finished consumer-grade word recognizer.
+
+### Models and accuracy
 
 | Model | Test top-1 | Test top-5 | Notes |
 |---|---|---|---|
-| Conv1D-Small (50K params) | 0.527 | 0.862 | 30-frame x 63-d landmark sequence |
-| GRU-Small (80K params) | 0.502 | 0.837 | Same input |
-| **Conv1D + GRU ensemble** | **0.577** | **0.870** | 0.5 / 0.5 softmax average; deployed |
+| Conv1D-Small (50K params, Keras) | 0.527 | 0.862 | 30-frame × 63-d landmark sequence |
+| GRU-Small (80K params, Keras) | 0.502 | 0.837 | Same input |
+| Conv1D + GRU ensemble (prior) | 0.577 | 0.870 | 0.5 / 0.5 softmax average |
+| BigConv1D (best single, A100, PyTorch) | 0.657 | 0.875 | 400 K params, attention pool, mixup |
+| 3-seed BigConv1D mean | 0.657 | 0.908 | seeds 42/43/1337 |
+| **5-way ensemble (deployed)** | **0.674** | **0.921** | 0.7 × (3 BigConv1D mean) + 0.3 × (Conv1D + GRU)/2 |
 
-Trained on WLASL-100 canonical split (12,888 clips, Kaggle `chinhde/wlasl-300-landmarks`, MIT). On Mac CPU the ensemble head is ~1 ms/clip; on Pi 5 it adds ~5 ms on top of landmark extraction.
+Trained on the canonical WLASL-100 split (12,888 clips, Kaggle `chinhde/wlasl-300-landmarks`, MIT). The deployed 5-way ensemble runs as **pure numpy** on the Pi (no PyTorch / TF on Pi at runtime); the three BigConv1D seeds were trained on an external A100 and exported to npz with bit-exact numpy forward (max diff 2 × 10⁻⁶ vs PyTorch).
 
-## Three Bugs We Found and Fixed
+### Latency
 
-1. **Frame leakage** from naive random split on sequential Kaggle frames.  
-   Fix: contiguous split per class block.
-2. **Invalid left-right augmentation** for chirality-sensitive letters.  
-   Fix: remove random flip; keep mild crop-pad/hue jitter.
-3. **Train/inference distribution mismatch** (tight 200x200 crops vs webcam full frame).  
-   Fix: MediaPipe hand ROI crop with padding before MobileNet.
+- **17 ms / clip** for the 5-way ensemble inference on Pi 5 (well under the 50 ms / frame budget).
+- **1.3 s capture latency** from button press to result on Pi 5: the camera loop temporarily bypasses its 300 ms inference throttle while `_word_capturing` is true, so the 30-frame window fills at the natural pipeline rate (~22 fps) instead of the throttled 3 fps.
+
+### Confidence gating
+
+The deployed UI applies a calibrated probability threshold so users see honest "ambiguous" fallbacks instead of bad top-1 guesses:
+
+| Setting | Value |
+|---|---|
+| Global threshold (calibrated on the 239-clip held-out test) | 0.48 |
+| Coverage (fraction of captures shown as confident) | 66.5 % |
+| **Precision when shown confidently** | **81.1 %** |
+| When below threshold | UI renders top-3 + amber "Did you mean…?" banner |
+
+`scripts/calibrate_word_ensemble.py` reproduces the threshold; the runtime auto-loads `artifacts/wlasl100/calibration.npz` if present.
+
+### Honest limits of the extension
+
+- **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 % — anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation in time for this report; that remains future work.
+- **Camera-precision floor.** The 640 × 480 capture (mandated by the FP32 letter pipeline above) yields slightly degraded MediaPipe landmark precision compared to a 1280 × 720 capture. Higher resolution would likely improve word recognition but at the cost of letter inference latency.
+- **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1 — i.e. our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
 
 ## Runtime Architecture
 
@@ -56,15 +100,22 @@ C270 camera  ->  MediaPipe HandLandmarker
                      |
                      +-- no hand  ->  "nothing"           [~9 ms]
                      |
-                     +-- hand     ->  crop+resize 224     [~38 ms]
+                     +-- hand     ->  crop+resize 224
                                           |
-                                          +-- MobileNetV3-Small (TFLite FP32)
-                                          +-- Landmark MLP (optional, npz/tflite)
-                                          +-- 30-frame landmark buffer
+                                          +-- letter pipeline                       [~38 ms / frame]
+                                          |    +-- MobileNetV3-Small (TFLite FP32)
+                                          |    +-- Landmark MLP ensemble
+                                          |
+                                          +-- 30-frame rolling landmark buffer
                                                    |
-                                                   +-- Conv1D-Small (npz, numpy)
-                                                   +-- GRU-Small    (npz, numpy)
+                                                   +-- word pipeline (5-way ens.)   [~17 ms / clip]
+                                                        +-- Conv1D-Small  (npz, numpy)
+                                                        +-- GRU-Small     (npz, numpy)
+                                                        +-- BigConv1D × 3 (npz, numpy, A100-trained)
+                                                        +-- confidence gate (T=0.48)
 ```
+
+Word capture latency (button press → top-5 + gating): **~1.3 s** on Pi 5.
 
 Main entrypoint: `python -m gesturebridge.app`
 
@@ -80,6 +131,8 @@ Supported flags:
 ## Quick Start
 
 ### 1) Development environment (training/evaluation workstation)
+
+### Letter pipeline (29-class alphabet)
 
 ```bash
 python3 -m venv .venv311
@@ -167,7 +220,7 @@ unzip data/wlasl_external/wlasl-300-landmarks.zip -d data/wlasl_external/
 # 2) Convert to GestureBridge format (N, 30, 63)
 python scripts/convert_kaggle_wlasl100_landmarks.py
 
-# 3) Train both heads
+# 3a) Train Keras Conv1D + GRU baselines (Mac CPU, ~30 min total)
 python scripts/train_wlasl100_pose.py --arch conv1d_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
@@ -178,14 +231,62 @@ python scripts/train_wlasl100_pose.py --arch gru_small \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
 
-# 4) Single-clip sanity check
+# 3b) Train BigConv1D swarm on a CUDA box (we used A100; ~90 s/seed)
+python scripts/train_conv1d_a100.py --epochs 120 --seed 42  \
+  --out-dir artifacts/wlasl100_a100_conv1d
+python scripts/train_conv1d_a100.py --epochs 120 --seed 43  \
+  --out-dir artifacts/wlasl100_a100_conv1d_s43
+python scripts/train_conv1d_a100.py --epochs 120 --seed 1337 \
+  --out-dir artifacts/wlasl100_a100_conv1d_s1337
+
+# 3c) Export PyTorch ckpts to npz (numpy-only Pi runtime)
+python scripts/export_bigconv1d_to_npz.py \
+  --ckpt artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
+  --out  artifacts/wlasl100/bigconv1d_s42.npz
+# (repeat for s43, s1337)
+
+# 3d) Calibrate the deployed 5-way ensemble's confidence threshold
+python scripts/calibrate_word_ensemble.py
+# → writes artifacts/wlasl100/calibration.npz with the 0.48 global threshold
+
+# 4) Eval everything against the held-out 239-clip Kaggle test split
+python scripts/eval_a100_ensemble.py
+# → prints the comparison table (Conv1D / GRU / BigConv1D / ensembles)
+
+# 5) Single-clip sanity check
 python scripts/predict_word_clip.py path/to/clip.mp4
 ```
 
 Notes:
 
-- `scripts/train_wlasl100_pose.py` defaults to `data/wlasl100/landmarks.npz` and `data/wlasl100/labels.txt` if arguments are omitted.
-- Runtime auto-attaches word models only when files exist under `artifacts/wlasl100/` (Conv1D mandatory; GRU optional for ensemble).
+- The Pi runtime auto-attaches whichever word models exist under
+  `artifacts/wlasl100/`. With all three BigConv1D npz files plus the
+  Conv1D + GRU + calibration files present, it builds the 5-way
+  ensemble + gating; otherwise it gracefully falls back to fewer heads.
+- `scripts/train_wlasl100_pose.py` is the original Keras pipeline;
+  `scripts/train_conv1d_a100.py` is the PyTorch BigConv1D used on A100.
+  The two pipelines coexist — BigConv1D is the preferred backbone, the
+  Keras heads remain in the ensemble for diversity.
+
+#### Optional: signer-conditioned few-shot (5-word demo)
+
+Trades cross-signer breadth for per-signer accuracy on a small vocab.
+Run on the actual deployment Pi + signer.
+
+```bash
+# On the Pi, sit in front of the C270; SPACE to record each take
+.venv311/bin/python scripts/record_demo_vocab.py \
+  --words hello help yes no water --takes 5
+
+# On the development machine
+python scripts/finetune_demo_words.py \
+  --backbone artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
+  --out-dir artifacts/wlasl5
+```
+
+Expected: 90-98 % top-1 on the recorded vocabulary for that signer.
+The 5-class fine-tune coexists with (does not replace) the 100-class
+ensemble.
 
 ## Runtime Configuration
 
