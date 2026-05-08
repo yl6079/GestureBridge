@@ -192,85 +192,53 @@ Open `http://127.0.0.1:8080`.
 
 ### ASL29 (letters)
 
+The Kaggle ASL Alphabet dataset is split with `--split-mode contiguous` to avoid frame-level leakage. The MobileNetV3 sweep is GPU-bound (we used a Vast.ai RTX 4090); everything else runs on CPU.
+
 ```bash
-# Download dataset
 kaggle datasets download grassknoted/asl-alphabet
-
-# Build contiguous split to avoid leakage
 python scripts/prepare_asl29.py --split-mode contiguous
-
-# Train MobileNetV3 sweep (typically CUDA box / Vast.ai)
 bash scripts/vastai_train.sh
-
-# Train landmark MLP head
 python scripts/train_landmark_mlp.py
-
-# Evaluate ensemble
 python scripts/eval_ensemble.py \
   --mobilenet artifacts/asl29/tflite/model_fp32.tflite \
   --landmark-mlp artifacts/asl29/landmark_mlp/landmark_mlp.npz \
   --split-csv data/asl29/splits/test.csv
 ```
 
-See `scripts/` for the data-prep, training, export, and evaluation helpers used by the commands above.
+See `scripts/` for the data-prep, training, export, and evaluation helpers.
 
 ### WLASL-100 (word-level)
 
+Pre-extracted Holistic landmarks are pulled from Kaggle and converted to the GestureBridge `(N, 30, 63)` format. The Keras Conv1D and GRU baselines train on a Mac CPU in ~30 min combined; the BigConv1D swarm is GPU-bound (~90 s per seed on an A100). Each PyTorch checkpoint is exported to `.npz` so the Pi runtime stays NumPy-only.
+
 ```bash
-# 1) Pull pre-extracted holistic landmarks
 kaggle datasets download chinhde/wlasl-300-landmarks -p data/wlasl_external/
 unzip data/wlasl_external/wlasl-300-landmarks.zip -d data/wlasl_external/
-
-# 2) Convert to GestureBridge format (N, 30, 63)
 python scripts/convert_kaggle_wlasl100_landmarks.py
 
-# 3a) Train Keras Conv1D + GRU baselines (Mac CPU, ~30 min total)
 python scripts/train_wlasl100_pose.py --arch conv1d_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
-
 python scripts/train_wlasl100_pose.py --arch gru_small \
   --data data/wlasl100_kaggle/landmarks.npz \
   --labels data/wlasl100_kaggle/labels.txt \
   --out-dir artifacts/wlasl100
 
-# 3b) Train BigConv1D swarm on a CUDA box (we used A100; ~90 s/seed)
-python scripts/train_conv1d_a100.py --epochs 120 --seed 42  \
-  --out-dir artifacts/wlasl100_a100_conv1d
-python scripts/train_conv1d_a100.py --epochs 120 --seed 43  \
-  --out-dir artifacts/wlasl100_a100_conv1d_s43
-python scripts/train_conv1d_a100.py --epochs 120 --seed 1337 \
-  --out-dir artifacts/wlasl100_a100_conv1d_s1337
+for seed in 42 43 1337; do
+  python scripts/train_conv1d_a100.py --epochs 120 --seed $seed \
+    --out-dir artifacts/wlasl100_a100_conv1d_s$seed
+  python scripts/export_bigconv1d_to_npz.py \
+    --ckpt artifacts/wlasl100_a100_conv1d_s$seed/ckpts/best.pt \
+    --out  artifacts/wlasl100/bigconv1d_s$seed.npz
+done
 
-# 3c) Export PyTorch ckpts to npz (numpy-only Pi runtime)
-python scripts/export_bigconv1d_to_npz.py \
-  --ckpt artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
-  --out  artifacts/wlasl100/bigconv1d_s42.npz
-# (repeat for s43, s1337)
-
-# 3d) Calibrate the deployed 5-way ensemble's confidence threshold
 python scripts/calibrate_word_ensemble.py
-# → writes artifacts/wlasl100/calibration.npz with the 0.48 global threshold
-
-# 4) Eval everything against the held-out 239-clip Kaggle test split
 python scripts/eval_a100_ensemble.py
-# → prints the comparison table (Conv1D / GRU / BigConv1D / ensembles)
-
-# 5) Single-clip sanity check
 python scripts/predict_word_clip.py path/to/clip.mp4
 ```
 
-Notes:
-
-- The Pi runtime auto-attaches whichever word models exist under
-  `artifacts/wlasl100/`. With all three BigConv1D npz files plus the
-  Conv1D + GRU + calibration files present, it builds the 5-way
-  ensemble + gating; otherwise it gracefully falls back to fewer heads.
-- `scripts/train_wlasl100_pose.py` is the original Keras pipeline;
-  `scripts/train_conv1d_a100.py` is the PyTorch BigConv1D used on A100.
-  The two pipelines coexist: BigConv1D is the preferred backbone, the
-  Keras heads remain in the ensemble for diversity.
+`scripts/calibrate_word_ensemble.py` writes the 0.48 global threshold to `artifacts/wlasl100/calibration.npz`. The Pi runtime auto-attaches whichever word models exist under `artifacts/wlasl100/`: with all three BigConv1D `.npz` files plus the Conv1D, GRU, and calibration files present, it assembles the deployed 5-way ensemble; otherwise it falls back to fewer heads. The Keras and PyTorch pipelines coexist: BigConv1D is the preferred backbone, the Keras heads remain in the ensemble for diversity.
 
 #### Optional: signer-conditioned fine-tune
 
