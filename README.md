@@ -294,25 +294,7 @@ ensemble.
 
 ## Runtime Configuration
 
-Most defaults live in `src/gesturebridge/config.py` (`SystemConfig` dataclasses).
-
-Key paths:
-
-- Letter model: `artifacts/asl29/tflite/model_fp32.tflite`
-- Letter labels: `artifacts/asl29/labels.txt`
-- Hand landmarker: `artifacts/mediapipe/hand_landmarker.task`
-- Word models: `artifacts/wlasl100/conv1d_small.npz` and `artifacts/wlasl100/gru_small.npz`
-- Vosk model: `artifacts/vosk/vosk-model-small-en-us-0.15`
-- UI sign assets: `assets/signs`
-- UI word clips: `assets/word_clips`
-
-Environment variables:
-
-- `GESTUREBRIDGE_FORCE_DAEMON=1`: force daemon mode in `start_gesturebridge.sh`.
-- `GESTUREBRIDGE_VOSK_INPUT_DEVICE`: override audio input device for Vosk capture.
-- `GESTUREBRIDGE_VOSK_SKIP_PULSE=1`: skip Pulse/PipeWire preference logic.
-- `GESTUREBRIDGE_DISABLE_TTS=1`: disable speech output.
-- `FETCH_VOSK_FORCE_PROXY=1`: keep proxy env while downloading Vosk model.
+Default model paths and runtime parameters are declared in `src/gesturebridge/config.py` (`SystemConfig` dataclasses). Runtime environment-variable overrides are documented at the top of `start_gesturebridge.sh`.
 
 ## Deployment
 

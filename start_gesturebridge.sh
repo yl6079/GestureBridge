@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# GestureBridge launcher. Runtime overrides:
+#   GESTUREBRIDGE_FORCE_DAEMON=1     force daemon mode (otherwise auto-detect)
+#   GESTUREBRIDGE_VOSK_INPUT_DEVICE  override Vosk audio input device
+#   GESTUREBRIDGE_VOSK_SKIP_PULSE=1  skip Pulse/PipeWire preference logic
+#   GESTUREBRIDGE_DISABLE_TTS=1      disable speech output
+#   FETCH_VOSK_FORCE_PROXY=1         keep proxy env while downloading Vosk model
 set -euo pipefail
 
 PROJECT_DIR="/home/elen6908/Documents/GestureBridge"
