@@ -103,7 +103,7 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 
 The clip below shows a dynamic gesture performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letter shown is not in the WLASL-100 vocabulary, so the clip does not measure word-recognition accuracy. It illustrates the dynamic path end to end: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
 
-<video src="https://github.com/user-attachments/assets/ad9de90b-48d2-4eaa-b123-0e8039870dfa" poster="docs/word_recognition_poster.png" controls></video>
+<video src="https://github.com/user-attachments/assets/ad9de90b-48d2-4eaa-b123-0e8039870dfa" poster="docs/demo_poster.png" controls></video>
 
 Other demos (letter recognition, speech-to-sign, Learner mode) are included in the project's presentation video.
 
