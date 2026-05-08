@@ -272,25 +272,16 @@ Notes:
   The two pipelines coexist: BigConv1D is the preferred backbone, the
   Keras heads remain in the ensemble for diversity.
 
-#### Optional: signer-conditioned few-shot (5-word demo)
+#### Optional: signer-conditioned fine-tune
 
-Trades cross-signer breadth for per-signer accuracy on a small vocab.
-Run on the actual deployment Pi + signer.
+Adapts the word backbone to a single signer's recordings on a small custom vocabulary. The resulting checkpoint coexists with, and does not replace, the 100-class ensemble.
 
 ```bash
-# On the Pi, sit in front of the C270; SPACE to record each take
-.venv311/bin/python scripts/record_demo_vocab.py \
-  --words hello help yes no water --takes 5
-
-# On the development machine
+.venv311/bin/python scripts/record_demo_vocab.py --takes 5
 python scripts/finetune_demo_words.py \
   --backbone artifacts/wlasl100_a100_conv1d/ckpts/best.pt \
   --out-dir artifacts/wlasl5
 ```
-
-Expected: 90-98 % top-1 on the recorded vocabulary for that signer.
-The 5-class fine-tune coexists with (does not replace) the 100-class
-ensemble.
 
 ## Runtime Configuration
 
