@@ -63,9 +63,8 @@ if [ -f "$LOCAL_ARTIFACTS/mediapipe/hand_landmarker.task" ]; then
     "$REMOTE:$PI_PATH/artifacts/mediapipe/"
 fi
 
-# Phase 2 word recognition: ship the Conv1D + GRU npz weights, labels,
-# eval JSON, and demo vocabulary. Pure-numpy at runtime so no extra
-# Python deps on the Pi.
+# Word recognition: ship the Conv1D + GRU npz weights, labels, eval
+# JSON, and demo vocabulary. Pure-numpy at runtime, no extra Pi deps.
 if [ -d "$LOCAL_ARTIFACTS/wlasl100" ]; then
   sshpass -p "$PI_PASS" rsync -az \
     -e "ssh -o StrictHostKeyChecking=accept-new" \

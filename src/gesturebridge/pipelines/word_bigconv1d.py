@@ -1,27 +1,10 @@
-"""Numpy-only forward pass for BigConv1D, the A100-trained word model.
+"""Numpy-only forward pass for BigConv1D.
 
 Mirrors the PyTorch architecture in `scripts/train_conv1d_a100.py`:
-
-    BigConv1D(
-        b1: ConvBlock(63 -> 96, k=3),
-        b2: ConvBlock(96 -> 128, k=3),
-        b3: ConvBlock(128 -> 192, k=3),
-        attn: Linear(192, 1) over time,
-        fc: Linear(192, 128) -> ReLU -> Linear(128, num_classes),
-    )
-
-Each ConvBlock:
-    c1: Conv1d(in, out, k=3, pad=1) + BN + ReLU
-    c2: Conv1d(out, out, k=3, pad=1) + BN
-    skip: Conv1d(in, out, k=1) if in != out else Identity
-    out = ReLU(c2 + skip(x))
-
-BatchNorm runs in eval mode using stored running_mean / running_var:
-    y = (x - running_mean) / sqrt(running_var + eps) * weight + bias
-
-The Pi already runs Conv1D and GRU forwards in pure numpy via
-`word_classifier.py` and `word_ensemble.py`; this module is the third
-deployable head.
+three residual ConvBlocks (63→96→128→192), a temporal attention pool,
+and a two-layer classifier head. BatchNorm runs in eval mode using the
+stored running statistics. Loaded from a single npz produced by
+`scripts/export_bigconv1d_to_npz.py`.
 """
 from __future__ import annotations
 

@@ -223,9 +223,8 @@ def main() -> None:
             landmark_classifier=landmark_classifier,
             word_classifier=word_classifier,
         )
-        # Load calibration if present (T1-D). Sets a global confidence
-        # threshold used by `_finalize_word_capture` to flag low-confidence
-        # captures as "ambiguous" instead of guessing.
+        # Load the global confidence threshold so low-confidence captures
+        # are flagged "ambiguous" instead of being shown as a top-1 label.
         calib_path = Path("artifacts/wlasl100/calibration.npz")
         if calib_path.exists():
             try:

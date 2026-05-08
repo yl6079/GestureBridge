@@ -1,19 +1,10 @@
-"""On-Pi recorder for the few-shot signer-conditioned vocabulary (T1-B).
+"""On-Pi recorder for the signer-conditioned word vocabulary.
 
-Wire-up:
-    1. Sit in front of the Pi's C270.
-    2. Run this script over SSH (or directly on the Pi terminal).
-    3. For each (word, take), the script counts down 1.5 s and records
-       a clip. SPACE between takes; ESC cancels.
-    4. After all takes, it extracts MediaPipe Hands landmarks per frame,
-       resamples to 30 frames, normalizes (wrist origin + max-abs scale),
-       and writes a single npz at `--out`.
-
-Output schema (drop-in compatible with `data/wlasl100_kaggle/landmarks.npz`):
-    X:        (N_words * N_takes, 30, 63) float32
-    y:        (N_words * N_takes,)      int32
-    take_ids: (N_words * N_takes,)      int32   # 0..N_takes-1, lets us split per-take
-    class_names: (N_words,)             unicode
+For each (word, take), records a short clip from the Pi's webcam,
+extracts MediaPipe Hands landmarks per frame, resamples to 30 frames,
+normalizes (wrist origin + max-abs scale), and writes a single npz
+compatible with `data/wlasl100_kaggle/landmarks.npz`. SPACE starts each
+take, ESC aborts.
 
 Usage:
     python scripts/record_demo_vocab.py \

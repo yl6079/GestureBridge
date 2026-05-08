@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download WLASL-100 clips for Phase 2 dynamic-gesture training.
+"""Download WLASL-100 clips for word-recognition training.
 
 Strategy:
 - Read the official WLASL_v0.3.json (cached at --json or fetched from GitHub).

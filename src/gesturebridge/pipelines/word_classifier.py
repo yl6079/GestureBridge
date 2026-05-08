@@ -1,18 +1,9 @@
-"""Numpy-only WLASL-100 word classifier — Pi-friendly inference.
+"""Numpy-only WLASL-100 Conv1D word classifier for Pi inference.
 
-Loads `artifacts/wlasl100/conv1d_small.npz` (produced by
-`scripts/train_wlasl100_pose.py`) and runs the Conv1D forward pass with
-pure numpy. No TensorFlow / PyTorch dependency at runtime; matches the
-philosophy of the existing landmark MLP (npz + numpy).
-
-Architecture (must match `train_wlasl100_pose.build_conv1d_small`):
-    Conv1D(64, k=3, same, ReLU)
-    Conv1D(64, k=3, same, ReLU)
-    MaxPool1D(2)
-    Conv1D(128, k=3, same, ReLU)
-    GlobalAveragePool1D
-    Dense(128, ReLU)
-    Dense(n_classes, softmax)
+Loads `artifacts/wlasl100/conv1d_small.npz` produced by
+`scripts/train_wlasl100_pose.py`. Architecture matches
+`build_conv1d_small`: two Conv1D(64) blocks, MaxPool, Conv1D(128),
+global average pool, Dense(128), Dense(n_classes).
 """
 from __future__ import annotations
 
@@ -87,21 +78,14 @@ class WordClassifier:
         return list(self._labels)
 
     def _forward(self, x: np.ndarray) -> np.ndarray:
-        """x: (T, 63). Returns logits over n_classes."""
+        """x: (T, 63). Returns logits; caller applies softmax."""
         w = self._weights
-        # conv1d (k=3, in=63, out=64)
         h = _relu(_conv1d_same(x, w["conv1d__0"], w["conv1d__1"]))
-        # conv1d_1 (k=3, 64->64)
         h = _relu(_conv1d_same(h, w["conv1d_1__0"], w["conv1d_1__1"]))
-        # maxpool 2
         h = _maxpool1d(h, 2)
-        # conv1d_2 (k=3, 64->128)
         h = _relu(_conv1d_same(h, w["conv1d_2__0"], w["conv1d_2__1"]))
-        # global avg pool
         h = h.mean(axis=0)
-        # dense (128->128) ReLU
         h = _relu(h @ w["dense__0"] + w["dense__1"])
-        # dense_1 (128->100) — return as logits; caller may apply softmax
         return h @ w["dense_1__0"] + w["dense_1__1"]
 
     def predict(self, sequence: np.ndarray, top_k: int = 5) -> list[tuple[str, float]]:

@@ -1,27 +1,10 @@
-"""Calibrate the deployed 5-way word ensemble for honest UI gating.
+"""Calibrate the deployed 5-way word ensemble for UI confidence gating.
 
-Runs the same 0.7×A100 + 0.3×deployed ensemble we ship from `app.py`
-over the held-out val + test splits, then:
-
-1. **Temperature scaling**: fits a single scalar `T` on validation
-   logits by minimizing NLL. Reduces overconfidence on novel inputs
-   without changing argmax predictions.
-2. **Per-class thresholds**: for each class c, finds the smallest
-   probability threshold `tau_c` on calibrated p(c) such that
-   accepted predictions of class c reach the configured precision
-   target on validation.
-
-Output: `artifacts/wlasl100/calibration.npz`
-
-    temperature      : float, shared across classes
-    thresholds       : (n_classes,) per-class probability cutoffs in [0,1]
-    target_precision : the precision target used to fit (0.85 default)
-    fallback         : default threshold if a class never hits the target
-
-The runtime loader reads this file (if present) and gates the UI:
-when the top-1 calibrated probability is below `thresholds[top-1]`,
-the API returns `status="ambiguous"` plus the top-3 list, instead of
-a single confident label.
+Runs the same ensemble we ship from `app.py` over the held-out val and
+test splits, then writes `artifacts/wlasl100/calibration.npz` with a
+shared temperature, per-class probability thresholds, and a global
+threshold. The runtime loader uses these to mark low-confidence
+captures as `status="ambiguous"` and surface a top-3 fallback in the UI.
 
 Usage:
     python scripts/calibrate_word_ensemble.py

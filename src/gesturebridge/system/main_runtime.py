@@ -67,11 +67,9 @@ NATO_TO_LETTER: dict[str, str] = {
 }
 
 
-# Phase 2: word-level speech-to-sign. Map spoken-word tokens to a video clip
-# under assets/word_clips/. When a token hits this map AND the clip file
-# exists at runtime, the response uses the clip instead of letter-spelling.
-# Aliases (e.g. "thanks" -> thank_you, "mom" -> mother) live here so we
-# don't have to invent multiple clip files for synonyms.
+# Word-level speech-to-sign: map spoken tokens to a clip under
+# assets/word_clips/. If the clip exists at runtime, use it instead of
+# letter-spelling. Aliases (thanks -> thank_you, mom -> mother) live here.
 WORD_CLIP_MAP: dict[str, str] = {
     # Greetings / courtesies
     "hello": "hello.mp4", "hi": "hello.mp4", "hey": "hello.mp4",
@@ -191,22 +189,17 @@ class MainRuntime:
     last_response: dict[str, object] | None = None
     last_learn_feedback: str = ""
     last_learn_feedback_ts: float = 0.0
-    # Word-mode capture state (Phase 2 IT-4). The user clicks "Capture Word"
-    # in the UI; the next N frames feed into _word_buffer; once full we run
-    # WordClassifier and stash the top-5 in _word_last_prediction.
+    # Word-mode capture: the next N frames after a Capture click feed
+    # into _word_buffer; once full we run WordClassifier and stash top-5.
     _word_capturing: bool = field(default=False, init=False, repr=False)
     _word_buffer: list = field(default_factory=list, init=False, repr=False)
     _word_window_frames: int = field(default=30, init=False, repr=False)
     _word_last_prediction: dict | None = field(default=None, init=False, repr=False)
     _word_capture_started_ts: float = field(default=0.0, init=False, repr=False)
-    # Confidence gating (T1-D). Loaded from artifacts/wlasl100/calibration.npz
-    # at boot. When the top-1 ensemble probability is below the threshold,
-    # `_finalize_word_capture` marks the prediction status as "ambiguous"
-    # and the UI surfaces a top-3 fallback instead of a confident label.
+    # Loaded from calibration.npz; below threshold the UI shows top-3 ambiguous.
     _word_threshold: float = field(default=0.0, init=False, repr=False)
     _word_calibration_meta: dict = field(default_factory=dict, init=False, repr=False)
-    # Health counters surfaced via /api/diagnostics. Each tick of the camera
-    # loop bumps `frames_processed`; if it stops moving, the loop is dead.
+    # Liveness counters surfaced via /api/diagnostics.
     _frames_processed: int = field(default=0, init=False, repr=False)
     _last_inference_ms: float = field(default=0.0, init=False, repr=False)
     _last_inference_ts: float = field(default=0.0, init=False, repr=False)
@@ -579,7 +572,7 @@ class MainRuntime:
         }
 
     # ------------------------------------------------------------------
-    # Word mode (Phase 2 IT-4): buffered camera capture + WordClassifier
+    # Word mode: buffered camera capture + WordClassifier.
     # ------------------------------------------------------------------
 
     @staticmethod

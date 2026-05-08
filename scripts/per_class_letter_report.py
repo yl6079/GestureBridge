@@ -1,12 +1,8 @@
-"""Per-class letter accuracy on the ASL29 honest test split.
+"""Per-class letter accuracy on the ASL29 contiguous test split.
 
 Loads the deployed letter ensemble (MobileNetV3-Small TFLite + landmark
-MLP), runs every test image, computes per-class top-1 accuracy + mean
-true-class confidence, and writes a markdown table sorted by reliability
-to `artifacts/asl29/eval/per_class_letter_report.md`.
-
-Used to pick the 3 strongest letters for the demo (T1-E in
-`notes/phase3_final_plan.md`).
+MLP), runs every test image, and writes a markdown table sorted by
+ensemble top-1 to `artifacts/asl29/eval/per_class_letter_report.md`.
 
 Usage:
     python scripts/per_class_letter_report.py

@@ -1,12 +1,9 @@
-"""Pure-numpy ensemble: Conv1D + GRU on WLASL-100 landmark sequences.
+"""Pure-numpy ensemble for WLASL-100 word recognition.
 
-Loads both `conv1d_small.npz` and `gru_small.npz` (trained by
-`scripts/train_wlasl100_pose.py`) and averages their softmax outputs.
-Empirically: Conv1D alone test top-1 = 52.7 %, GRU alone = 50.2 %,
-ensemble (0.5 / 0.5) = 57.7 %, top-5 = 87.0 % on the official Kaggle
-WLASL-100 test split.
-
-Pi-friendly: zero external ML deps at runtime, just numpy.
+Provides `GRUClassifier` (numpy GRU forward), `EnsembleWordClassifier`
+(Conv1D + GRU softmax average), and `MultiEnsembleWordClassifier`
+(arbitrary weighted soft-vote, used at runtime to combine the deployed
+heads). No PyTorch or TensorFlow at inference.
 """
 from __future__ import annotations
 
@@ -133,23 +130,10 @@ class EnsembleWordClassifier:
 
 @dataclass(slots=True)
 class MultiEnsembleWordClassifier:
-    """Soft-vote across an arbitrary list of (classifier, weight) pairs.
+    """Weighted soft-vote across (classifier, weight) pairs.
 
-    Each entry must have either:
-      - `forward_logits(seq) -> ndarray` (BigConv1D, GRU), OR
-      - `_forward(seq) -> ndarray` (legacy Conv1D path).
-
-    Used at runtime to combine the deployed Conv1D + GRU heads with the
-    A100-trained BigConv1D swarm. Empirical ranking on the WLASL-100
-    held-out test (239 clips):
-
-        Conv1D alone .................. 0.527
-        GRU alone ..................... 0.502
-        Conv1D + GRU (deployed) ....... 0.577
-        BigConv1D (single) ............ 0.640-0.657
-        3x BigConv1D mean ............. 0.657
-        5-way mean (3 BC1D + Conv1D + GRU) 0.661
-        0.3*existing + 0.7*A100 swarm . 0.674   <-- best
+    Each member must expose either `forward_logits(seq)` or `_forward(seq)`.
+    Runtime uses this to combine the Conv1D, GRU, and BigConv1D heads.
     """
     members: list[tuple[object, float]]
 

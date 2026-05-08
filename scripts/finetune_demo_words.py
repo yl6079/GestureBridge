@@ -1,21 +1,13 @@
-"""Few-shot signer-conditioned fine-tune (T1-C) on top of the A100 BigConv1D
-backbone. Consumes the output of `scripts/record_demo_vocab.py`.
+"""Signer-conditioned fine-tune on top of the BigConv1D backbone.
 
-Strategy:
-- Start from a pretrained BigConv1D (s42 by default). Load all weights
-  except the final classifier head.
-- Replace `fc.4` with a fresh 5-class linear (matches the recorder's
-  vocabulary).
-- Freeze early conv blocks (`b1`, `b2`); only train `b3`, `attn`, `fc.1`,
-  `fc.4`. Keeps the temporal feature extractor anchored on the 12k-clip
-  pretraining and only re-fits the high-level pooling + head to the
-  signer's specific cadence.
-- Take-based split: take 0..2 = train (15 clips), take 3 = val (5),
-  take 4 = test (5). Per-class, no clip leakage.
-- 200 epochs, AdamW lr=3e-4, mixup α=0.2, light augmentation.
-- Export to npz so the Pi runtime can swap it in without PyTorch.
+Consumes the output of `scripts/record_demo_vocab.py`. Loads the
+pretrained backbone, swaps the classifier head for a small custom
+vocabulary, freezes the early conv blocks, and fine-tunes the deeper
+block, attention pool, and head with mixup and label smoothing. Take-
+based 3/1/1 split per class avoids clip leakage. Exports an npz so the
+Pi runtime can swap it in without PyTorch.
 
-Usage (on Mac after Yizheng records):
+Usage:
     python scripts/finetune_demo_words.py \
         --data data/fewshot/landmarks.npz \
         --backbone artifacts/wlasl100_a100_conv1d/ckpts/best.pt \

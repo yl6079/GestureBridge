@@ -1,34 +1,15 @@
-"""Convert Kaggle wlasl-300-landmarks (chinhde, MIT) into our training NPZ.
+"""Convert Kaggle wlasl-300-landmarks (chinhde, MIT) into the training NPZ.
 
-The Kaggle archive contains MediaPipe Holistic-style landmarks for the
-official WLASL-100 subset, with 12,730 train + 240 test clips. Format:
+The Kaggle archive ships MediaPipe Holistic-style landmarks for the
+official WLASL-100 subset. We keep the right hand only (21x3) for
+single-hand format compatibility with `extract_wlasl_landmarks.py`. If
+the right hand is missing on a frame but the left hand is present, we
+mirror the left hand into right-hand space (flip x) so one-handed signs
+still match. Each clip is resampled to T=30 frames and normalized
+(wrist origin, max-abs distance scale).
 
-    {<class_index_str>: [
-        {"keyframes": int,
-         "landmarks": {<frame_idx_str>: {
-             "pose": [[x,y,z]*15],
-             "right": [[x,y,z]*21],
-             "left":  [[x,y,z]*21],
-         }, ...}},
-        ...]}
-
-We keep ONLY the right hand (21×3) to stay format-compatible with our
-existing pipeline (`scripts/extract_wlasl_landmarks.py` produces
-single-hand 21×3 tensors). If the right hand is all-zero on a frame
-but the left hand is non-zero, we mirror the left hand into right-hand
-space (flip x). This preserves chirality reasonably for one-hand signs.
-
-We resample each clip to T=30 frames uniformly, normalize per-frame
-(wrist origin, max-abs distance scale) — matching our existing code in
-`scripts/extract_wlasl_landmarks._normalize_landmarks`.
-
-Output: `data/wlasl100_kaggle/landmarks.npz` with the same schema as
-`data/wlasl100/landmarks.npz` (X, y, detect, split, paths).
-The label index space is rebuilt from `top_100_classes.txt`. We also
-write a fresh `labels.txt` so it's portable.
-
-License: MIT (Kaggle dataset card). Underlying WLASL data is C-UDA;
-this aggregated landmark output is a derivative we keep gitignored.
+Output: `data/wlasl100_kaggle/landmarks.npz` with schema
+(X, y, detect, split, paths). Labels follow `top_100_classes.txt`.
 
 Usage:
     python scripts/convert_kaggle_wlasl100_landmarks.py

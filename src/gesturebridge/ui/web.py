@@ -738,7 +738,7 @@ async function refresh(){
       const preview = document.getElementById('preview');
       preview.src = `/video.jpg?t=${Date.now()}`;
     }
-    // Word mode UI updates (Phase 2 IT-4).
+    // Word mode UI updates.
     if(typeof s.word_loaded === 'boolean'){
       const newLoaded = s.word_loaded;
       if(newLoaded !== wordLoaded){
@@ -844,8 +844,7 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 self.wfile.write(html)
                 return
             if self.path == "/api/diagnostics":
-                # Subsystem health snapshot (Phase 2 IT-9). Cheap to compute,
-                # safe under load — meant to be hit during debug sessions:
+                # Subsystem health snapshot for debug sessions:
                 #   curl -s http://127.0.0.1:8080/api/diagnostics | python3 -m json.tool
                 try:
                     payload = runtime.diagnostics()
@@ -883,7 +882,7 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                             else state.sign_assets,
                             "vosk_recording": runtime.is_vosk_recording(),
                             "vosk_notification": runtime.take_vosk_notification(),
-                            # Phase 2 IT-4 word mode UI hooks.
+                            # Word-mode UI hooks.
                             "word_loaded": runtime.word_classifier is not None,
                             "word_capturing": bool(latest.get("word_capturing", False)),
                             "word_buffer_filled": int(latest.get("word_buffer_filled", 0)),
@@ -957,9 +956,9 @@ def build_web_server(host: str, port: int, runtime: MainRuntime, state: UIState)
                 return
 
             if self.path == "/api/word/capture":
-                # Phase 2 IT-4: start a 1-second camera capture for word
-                # recognition. The camera loop fills the buffer; client polls
-                # GET /api/state for `word_prediction`.
+                # Start a 1-second camera capture for word recognition. The
+                # camera loop fills the buffer; client polls /api/state for
+                # `word_prediction`.
                 result = runtime.start_word_capture()
                 if "error" in result:
                     self._send_json(result, status=409)

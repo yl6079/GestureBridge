@@ -1,10 +1,9 @@
-"""Big Conv1D / TCN on WLASL-100 hand-landmark sequences (A100, PyTorch).
+"""Big Conv1D / TCN on WLASL-100 hand-landmark sequences (PyTorch, A100).
 
-T2B fallback after the ST-GCN T2A attempt under-/over-fit. Same data
-(`data/wlasl100_kaggle/landmarks.npz`), different architecture: a deeper
-1D-conv tower with a temporal attention pool, mixup augmentation, and
-label smoothing. Goal: beat the existing Keras Conv1D + GRU ensemble's
-test top-1 = 0.577 / top-5 = 0.870.
+A deeper 1D-conv tower with a residual block stack, temporal attention
+pool, mixup augmentation, and label smoothing. Trained on
+`data/wlasl100_kaggle/landmarks.npz`; checkpoints feed
+`scripts/export_bigconv1d_to_npz.py` so the Pi runtime stays NumPy-only.
 
 Usage:
     python scripts/train_conv1d_a100.py --epochs 120

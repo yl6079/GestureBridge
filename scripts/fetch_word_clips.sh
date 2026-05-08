@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetch the 5 IT-1 reference word clips into assets/word_clips/.
+# Fetch reference word clips into assets/word_clips/.
 # Sources documented in assets/word_clips/SOURCES.md.
 set -euo pipefail
 
