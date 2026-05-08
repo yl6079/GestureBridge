@@ -1,0 +1,10 @@
+{
+  "fp32_tflite_path": "artifacts/asl29/tflite/model_fp32.tflite",
+  "fp32_size_bytes": 3802692,
+  "fp32_eval": {
+    "accuracy": 0.8003448275862068,
+    "avg_inference_ms_per_sample": 3.2012885500644814,
+    "num_samples": 8700
+  },
+  "int8_skipped": true
+}

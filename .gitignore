@@ -28,18 +28,32 @@ Thumbs.db
 *.tmp
 *.swp
 
-# Large datasets and generated data
-data/
+# Large or license-fragile datasets. The shipped subset for
+# reproduction is data/wlasl100_kaggle/.
+data/asl29/
+data/wlasl100/
+data/wlasl_external/
 asl_alphabet/
 asl_alphabet.zip
 
-# Training/export artifacts
-artifacts/
-*.keras
+# Training/export artifacts. The shipped subsets for runtime + eval
+# are artifacts/asl29/, artifacts/mediapipe/, artifacts/wlasl100/.
+artifacts/wlasl5/
+artifacts/wlasl100_a100/
+artifacts/wlasl100_a100_conv1d/
+artifacts/wlasl100_a100_conv1d_s43/
+artifacts/wlasl100_a100_conv1d_s1337/
+artifacts/vosk/
+
+# Within shipped subtrees, exclude retrain-only or AI-prose files.
+artifacts/asl29/landmarks/
+artifacts/asl29/eval/*.md
+artifacts/wlasl100/*.keras
+artifacts/wlasl100/bigconv1d_s2024.npz
+artifacts/wlasl100/bigconv1d_s7.npz
+
 *.h5
-*.tflite
 *.onnx
-*.npz
 
 # Phase 2 word-recognition: raw clips not redistributed (license unclear
 # / C-UDA). Re-fetch via scripts/fetch_word_clips.sh.

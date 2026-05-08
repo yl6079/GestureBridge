@@ -1,0 +1,7 @@
+{
+  "iterations": 200,
+  "threads": 4,
+  "avg_latency_ms": 1.1536510125733912,
+  "p95_latency_ms": 1.2135553872212768,
+  "estimated_fps": 866.8132642378134
+}

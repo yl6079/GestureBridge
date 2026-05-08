@@ -1,0 +1,183 @@
+{
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "total": 8700,
+  "correct": 8700,
+  "per_class": {
+    "A": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "B": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "C": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "D": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "E": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "F": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "G": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "H": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "I": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "J": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "K": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "L": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "M": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "N": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "O": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "P": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "Q": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "R": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "S": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "T": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "U": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "V": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "W": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "X": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "Y": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "Z": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "del": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "nothing": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "space": {
+      "support": 300,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "top_confusions": []
+}

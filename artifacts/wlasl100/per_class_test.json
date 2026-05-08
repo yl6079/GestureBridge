@@ -1,0 +1,802 @@
+[
+  {
+    "gloss": "dance",
+    "cid": 37,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999999403953552
+  },
+  {
+    "gloss": "water",
+    "cid": 53,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999998211860657
+  },
+  {
+    "gloss": "have",
+    "cid": 58,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999971389770508
+  },
+  {
+    "gloss": "enjoy",
+    "cid": 40,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999463856220245
+  },
+  {
+    "gloss": "finish",
+    "cid": 14,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9998788833618164
+  },
+  {
+    "gloss": "class",
+    "cid": 55,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9997830092906952
+  },
+  {
+    "gloss": "snow",
+    "cid": 63,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9989068806171417
+  },
+  {
+    "gloss": "president",
+    "cid": 91,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9978957772254944
+  },
+  {
+    "gloss": "tea",
+    "cid": 64,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9967193603515625
+  },
+  {
+    "gloss": "many",
+    "cid": 17,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9964305957158407
+  },
+  {
+    "gloss": "problem",
+    "cid": 74,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9951570332050323
+  },
+  {
+    "gloss": "wrong",
+    "cid": 32,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9884551465511322
+  },
+  {
+    "gloss": "cough",
+    "cid": 99,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9832549095153809
+  },
+  {
+    "gloss": "new",
+    "cid": 87,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9817861914634705
+  },
+  {
+    "gloss": "shirt",
+    "cid": 30,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9780771533648173
+  },
+  {
+    "gloss": "none",
+    "cid": 88,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9698825478553772
+  },
+  {
+    "gloss": "graduate",
+    "cid": 27,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9676856696605682
+  },
+  {
+    "gloss": "orange",
+    "cid": 19,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.960452139377594
+  },
+  {
+    "gloss": "work",
+    "cid": 44,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9552159905433655
+  },
+  {
+    "gloss": "chair",
+    "cid": 2,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9547702670097351
+  },
+  {
+    "gloss": "drive",
+    "cid": 82,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9464483857154846
+  },
+  {
+    "gloss": "travel",
+    "cid": 78,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.885996401309967
+  },
+  {
+    "gloss": "always",
+    "cid": 96,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8739466071128845
+  },
+  {
+    "gloss": "fish",
+    "cid": 26,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8243592182795206
+  },
+  {
+    "gloss": "bed",
+    "cid": 22,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7950843870639801
+  },
+  {
+    "gloss": "different",
+    "cid": 56,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7377505302429199
+  },
+  {
+    "gloss": "full",
+    "cid": 48,
+    "n": 1,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5307465195655823
+  },
+  {
+    "gloss": "last",
+    "cid": 41,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7317961752414703
+  },
+  {
+    "gloss": "year",
+    "cid": 11,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7035942325989405
+  },
+  {
+    "gloss": "clothes",
+    "cid": 4,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6773402479787668
+  },
+  {
+    "gloss": "room",
+    "cid": 61,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.673674812540412
+  },
+  {
+    "gloss": "table",
+    "cid": 20,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6667422449002819
+  },
+  {
+    "gloss": "help",
+    "cid": 9,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6664562581956481
+  },
+  {
+    "gloss": "yes",
+    "cid": 12,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6216080746477625
+  },
+  {
+    "gloss": "now",
+    "cid": 18,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.558763822303156
+  },
+  {
+    "gloss": "dark",
+    "cid": 38,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.5500340647995472
+  },
+  {
+    "gloss": "go",
+    "cid": 3,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.5282408992557474
+  },
+  {
+    "gloss": "pink",
+    "cid": 43,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.4490411023919781
+  },
+  {
+    "gloss": "student",
+    "cid": 94,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.718668133020401
+  },
+  {
+    "gloss": "with",
+    "cid": 66,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6847931146621704
+  },
+  {
+    "gloss": "day",
+    "cid": 81,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6819418221712112
+  },
+  {
+    "gloss": "game",
+    "cid": 84,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6316775232553482
+  },
+  {
+    "gloss": "test",
+    "cid": 77,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5794883966445923
+  },
+  {
+    "gloss": "change",
+    "cid": 36,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5271857548505068
+  },
+  {
+    "gloss": "ball",
+    "cid": 68,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.522607708349824
+  },
+  {
+    "gloss": "remember",
+    "cid": 75,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5114899361506104
+  },
+  {
+    "gloss": "football",
+    "cid": 83,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.5001068665806088
+  },
+  {
+    "gloss": "bake",
+    "cid": 97,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.5000232840284298
+  },
+  {
+    "gloss": "door",
+    "cid": 57,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.5000000059481007
+  },
+  {
+    "gloss": "coffee",
+    "cid": 70,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.49952863913040346
+  },
+  {
+    "gloss": "medicine",
+    "cid": 51,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4984580520540476
+  },
+  {
+    "gloss": "decide",
+    "cid": 47,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4963696599006653
+  },
+  {
+    "gloss": "theory",
+    "cid": 95,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.48937670793384314
+  },
+  {
+    "gloss": "teacher",
+    "cid": 65,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.4876507865265012
+  },
+  {
+    "gloss": "south",
+    "cid": 93,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4758556363304649
+  },
+  {
+    "gloss": "most",
+    "cid": 86,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.4685890879482031
+  },
+  {
+    "gloss": "hearing",
+    "cid": 28,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.4676519790664315
+  },
+  {
+    "gloss": "drink",
+    "cid": 0,
+    "n": 4,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4670777931550044
+  },
+  {
+    "gloss": "bird",
+    "cid": 35,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4489899103455173
+  },
+  {
+    "gloss": "cat",
+    "cid": 54,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.44830180464487057
+  },
+  {
+    "gloss": "pencil",
+    "cid": 89,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3722948897629976
+  },
+  {
+    "gloss": "daughter",
+    "cid": 71,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3334824135527015
+  },
+  {
+    "gloss": "learn",
+    "cid": 59,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3297808924689889
+  },
+  {
+    "gloss": "name",
+    "cid": 72,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3247749621514231
+  },
+  {
+    "gloss": "show",
+    "cid": 62,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3176104687154293
+  },
+  {
+    "gloss": "city",
+    "cid": 46,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.302740678191185
+  },
+  {
+    "gloss": "meet",
+    "cid": 42,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3015924468636513
+  },
+  {
+    "gloss": "bad",
+    "cid": 67,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.28996422886849066
+  },
+  {
+    "gloss": "apple",
+    "cid": 34,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.2610914055608191
+  },
+  {
+    "gloss": "government",
+    "cid": 85,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.23454972729086876
+  },
+  {
+    "gloss": "plan",
+    "cid": 90,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.18938041251385584
+  },
+  {
+    "gloss": "computer",
+    "cid": 1,
+    "n": 5,
+    "top1_acc": 0.4,
+    "top5_acc": 0.8,
+    "mean_true_conf": 0.4023858585394919
+  },
+  {
+    "gloss": "kiss",
+    "cid": 29,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.3963816128784507
+  },
+  {
+    "gloss": "soon",
+    "cid": 76,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.37441734162469703
+  },
+  {
+    "gloss": "rabbit",
+    "cid": 60,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.37012092452381234
+  },
+  {
+    "gloss": "walk",
+    "cid": 10,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.36563689004591043
+  },
+  {
+    "gloss": "like",
+    "cid": 16,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3570293299853802
+  },
+  {
+    "gloss": "candy",
+    "cid": 5,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3547422934416318
+  },
+  {
+    "gloss": "dog",
+    "cid": 25,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3333231340000869
+  },
+  {
+    "gloss": "accident",
+    "cid": 33,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.32939081894195016
+  },
+  {
+    "gloss": "black",
+    "cid": 13,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.279894525451103
+  },
+  {
+    "gloss": "visit",
+    "cid": 52,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.24328176851850003
+  },
+  {
+    "gloss": "blue",
+    "cid": 23,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.1888770186342299
+  },
+  {
+    "gloss": "cousin",
+    "cid": 6,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.3333333333333333,
+    "mean_true_conf": 0.1429235817345269
+  },
+  {
+    "gloss": "hot",
+    "cid": 15,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.09457298907606553
+  },
+  {
+    "gloss": "doctor",
+    "cid": 39,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.3333333333333333,
+    "mean_true_conf": 0.06632329105506567
+  },
+  {
+    "gloss": "can",
+    "cid": 24,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.05602325266227126
+  },
+  {
+    "gloss": "fine",
+    "cid": 8,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.053041315211885376
+  },
+  {
+    "gloss": "thanksgiving",
+    "cid": 21,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.040864999234881814
+  },
+  {
+    "gloss": "letter",
+    "cid": 50,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.3333333333333333,
+    "mean_true_conf": 0.03848734216205905
+  },
+  {
+    "gloss": "arrive",
+    "cid": 79,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.03281480538407777
+  },
+  {
+    "gloss": "police",
+    "cid": 73,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.032094391994178295
+  },
+  {
+    "gloss": "banana",
+    "cid": 80,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.025917712717728136
+  },
+  {
+    "gloss": "how",
+    "cid": 49,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.020259287126331554
+  },
+  {
+    "gloss": "deaf",
+    "cid": 7,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.005032032730901386
+  },
+  {
+    "gloss": "buy",
+    "cid": 69,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.00116312785212358
+  },
+  {
+    "gloss": "basketball",
+    "cid": 45,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.0006045283662388101
+  },
+  {
+    "gloss": "champion",
+    "cid": 98,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.0,
+    "mean_true_conf": 0.0003542178941056129
+  },
+  {
+    "gloss": "tall",
+    "cid": 31,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 4.934285930321044e-05
+  },
+  {
+    "gloss": "small",
+    "cid": 92,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.0,
+    "mean_true_conf": 7.332934259807189e-10
+  }
+]

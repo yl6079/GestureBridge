@@ -1,0 +1,14 @@
+{
+  "best_val_accuracy": 0.8170062695924765,
+  "test_accuracy_on_detected": 0.8199914383561644,
+  "test_top3_accuracy": 0.8705051369863014,
+  "n_train": 64189,
+  "n_val": 5104,
+  "n_test": 4672,
+  "hidden_layers": [
+    256,
+    128
+  ],
+  "npz_path": "artifacts/asl29/landmark_mlp/landmark_mlp.npz",
+  "npz_size_bytes": 199254
+}

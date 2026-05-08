@@ -284,13 +284,19 @@ KIOSK=0 bash deploy/kiosk/open_kiosk.sh
 
 ## Data and Artifact Policy
 
-This repository intentionally ignores most large/generated outputs:
+The repository ships a curated reproduction set (~50 MB) so a fresh clone can run the app and re-execute the word-recognition evaluation without re-training:
 
-- `data/` is gitignored.
-- `artifacts/` is gitignored.
-- `assets/word_clips/*.mp4` is gitignored.
+- `artifacts/asl29/` (letter pipeline weights, TFLite models, eval JSONs, Pi benchmark)
+- `artifacts/mediapipe/hand_landmarker.task` (required at runtime)
+- `artifacts/wlasl100/` (deployed 5-way ensemble weights, calibration, eval JSONs)
+- `data/wlasl100_kaggle/` (pre-extracted Holistic landmarks for word eval)
 
-Expect to generate or download these locally before running full functionality.
+The following are intentionally not redistributed and must be re-fetched locally:
+
+- Raw Kaggle ASL alphabet images (`data/asl29_raw/`) and the derived `data/asl29/splits/` CSVs. Re-create with `kaggle datasets download grassknoted/asl-alphabet` then `python scripts/prepare_asl29.py`.
+- Raw WLASL clips (`data/wlasl100/videos/`). License is mixed; re-fetch with `python scripts/prepare_wlasl100.py`.
+- Speech-to-sign clips (`assets/word_clips/*.mp4`). License uncertain; see `assets/word_clips/SOURCES.md` and `scripts/fetch_word_clips.sh`.
+- A100 PyTorch checkpoints (`artifacts/wlasl100_a100*/ckpts/`). Only needed to re-export the BigConv1D npz weights, which we already ship.
 
 ## Hardware
 

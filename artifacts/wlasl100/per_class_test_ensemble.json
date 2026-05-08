@@ -1,0 +1,802 @@
+[
+  {
+    "gloss": "have",
+    "cid": 58,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999629259109497
+  },
+  {
+    "gloss": "enjoy",
+    "cid": 40,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9999542534351349
+  },
+  {
+    "gloss": "water",
+    "cid": 53,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9995569884777069
+  },
+  {
+    "gloss": "class",
+    "cid": 55,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9992587566375732
+  },
+  {
+    "gloss": "tea",
+    "cid": 64,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9958786964416504
+  },
+  {
+    "gloss": "president",
+    "cid": 91,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9921115636825562
+  },
+  {
+    "gloss": "orange",
+    "cid": 19,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.979641854763031
+  },
+  {
+    "gloss": "snow",
+    "cid": 63,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9787374436855316
+  },
+  {
+    "gloss": "chair",
+    "cid": 2,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9762752850850424
+  },
+  {
+    "gloss": "graduate",
+    "cid": 27,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9673701822757721
+  },
+  {
+    "gloss": "wrong",
+    "cid": 32,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9318099617958069
+  },
+  {
+    "gloss": "many",
+    "cid": 17,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.929684599240621
+  },
+  {
+    "gloss": "travel",
+    "cid": 78,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.9292823672294617
+  },
+  {
+    "gloss": "always",
+    "cid": 96,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8925256431102753
+  },
+  {
+    "gloss": "problem",
+    "cid": 74,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8810307383537292
+  },
+  {
+    "gloss": "different",
+    "cid": 56,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8620857000350952
+  },
+  {
+    "gloss": "with",
+    "cid": 66,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8420189023017883
+  },
+  {
+    "gloss": "bed",
+    "cid": 22,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8398333191871643
+  },
+  {
+    "gloss": "table",
+    "cid": 20,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8310862183570862
+  },
+  {
+    "gloss": "day",
+    "cid": 81,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.826620876789093
+  },
+  {
+    "gloss": "finish",
+    "cid": 14,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.8108933170636495
+  },
+  {
+    "gloss": "shirt",
+    "cid": 30,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7979268034299215
+  },
+  {
+    "gloss": "test",
+    "cid": 77,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7847485244274139
+  },
+  {
+    "gloss": "last",
+    "cid": 41,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7637836138407389
+  },
+  {
+    "gloss": "new",
+    "cid": 87,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7560420334339142
+  },
+  {
+    "gloss": "cough",
+    "cid": 99,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7548925280570984
+  },
+  {
+    "gloss": "dance",
+    "cid": 37,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7501291334629059
+  },
+  {
+    "gloss": "work",
+    "cid": 44,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7284809350967407
+  },
+  {
+    "gloss": "dark",
+    "cid": 38,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7036020557085673
+  },
+  {
+    "gloss": "pencil",
+    "cid": 89,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6716997772455215
+  },
+  {
+    "gloss": "name",
+    "cid": 72,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6595636308193207
+  },
+  {
+    "gloss": "teacher",
+    "cid": 65,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6299614310264587
+  },
+  {
+    "gloss": "apple",
+    "cid": 34,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6173781901597977
+  },
+  {
+    "gloss": "room",
+    "cid": 61,
+    "n": 3,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6168387532234192
+  },
+  {
+    "gloss": "game",
+    "cid": 84,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5927095115184784
+  },
+  {
+    "gloss": "visit",
+    "cid": 52,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.587884396314621
+  },
+  {
+    "gloss": "full",
+    "cid": 48,
+    "n": 1,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5272851586341858
+  },
+  {
+    "gloss": "most",
+    "cid": 86,
+    "n": 2,
+    "top1_acc": 1.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.513479083776474
+  },
+  {
+    "gloss": "clothes",
+    "cid": 4,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.6718219884981712
+  },
+  {
+    "gloss": "help",
+    "cid": 9,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.6610337140677819
+  },
+  {
+    "gloss": "go",
+    "cid": 3,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.5969688469128869
+  },
+  {
+    "gloss": "pink",
+    "cid": 43,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5610670447349548
+  },
+  {
+    "gloss": "year",
+    "cid": 11,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5431540310382843
+  },
+  {
+    "gloss": "now",
+    "cid": 18,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5317065577154475
+  },
+  {
+    "gloss": "candy",
+    "cid": 5,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.508159788325429
+  },
+  {
+    "gloss": "fish",
+    "cid": 26,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.48849137624104816
+  },
+  {
+    "gloss": "yes",
+    "cid": 12,
+    "n": 3,
+    "top1_acc": 0.6666666666666666,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.4021299775777152
+  },
+  {
+    "gloss": "drive",
+    "cid": 82,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.7232092767953873
+  },
+  {
+    "gloss": "remember",
+    "cid": 75,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.622530572116375
+  },
+  {
+    "gloss": "student",
+    "cid": 94,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.615581676363945
+  },
+  {
+    "gloss": "football",
+    "cid": 83,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5384288653731346
+  },
+  {
+    "gloss": "ball",
+    "cid": 68,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.5110504701733589
+  },
+  {
+    "gloss": "coffee",
+    "cid": 70,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4997310254842944
+  },
+  {
+    "gloss": "theory",
+    "cid": 95,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.49483563227113336
+  },
+  {
+    "gloss": "south",
+    "cid": 93,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.49342342047020793
+  },
+  {
+    "gloss": "bake",
+    "cid": 97,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4878420358563744
+  },
+  {
+    "gloss": "none",
+    "cid": 88,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.48760886490345
+  },
+  {
+    "gloss": "hearing",
+    "cid": 28,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.47729549650102854
+  },
+  {
+    "gloss": "door",
+    "cid": 57,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.4771462165463163
+  },
+  {
+    "gloss": "drink",
+    "cid": 0,
+    "n": 4,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.37527509127539815
+  },
+  {
+    "gloss": "blue",
+    "cid": 23,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.36768583580851555
+  },
+  {
+    "gloss": "government",
+    "cid": 85,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.35306415893137455
+  },
+  {
+    "gloss": "daughter",
+    "cid": 71,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3461460620164871
+  },
+  {
+    "gloss": "plan",
+    "cid": 90,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3449005930451676
+  },
+  {
+    "gloss": "decide",
+    "cid": 47,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.29952517542815027
+  },
+  {
+    "gloss": "medicine",
+    "cid": 51,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.29889675602316856
+  },
+  {
+    "gloss": "cat",
+    "cid": 54,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.29302355216350406
+  },
+  {
+    "gloss": "change",
+    "cid": 36,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.2638013921678066
+  },
+  {
+    "gloss": "bad",
+    "cid": 67,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.2536529790444533
+  },
+  {
+    "gloss": "bird",
+    "cid": 35,
+    "n": 2,
+    "top1_acc": 0.5,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.2246503016826864
+  },
+  {
+    "gloss": "computer",
+    "cid": 1,
+    "n": 5,
+    "top1_acc": 0.4,
+    "top5_acc": 0.6,
+    "mean_true_conf": 0.40467762197367846
+  },
+  {
+    "gloss": "soon",
+    "cid": 76,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.387552576760451
+  },
+  {
+    "gloss": "dog",
+    "cid": 25,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.32605882856296375
+  },
+  {
+    "gloss": "hot",
+    "cid": 15,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.2609099845091502
+  },
+  {
+    "gloss": "kiss",
+    "cid": 29,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.25140055936676475
+  },
+  {
+    "gloss": "black",
+    "cid": 13,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.24251005798578262
+  },
+  {
+    "gloss": "fine",
+    "cid": 8,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.19399619168204177
+  },
+  {
+    "gloss": "cousin",
+    "cid": 6,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.189981796235467
+  },
+  {
+    "gloss": "like",
+    "cid": 16,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.1785466925551494
+  },
+  {
+    "gloss": "thanksgiving",
+    "cid": 21,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.17277042961120515
+  },
+  {
+    "gloss": "deaf",
+    "cid": 7,
+    "n": 3,
+    "top1_acc": 0.3333333333333333,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.1343786138992679
+  },
+  {
+    "gloss": "meet",
+    "cid": 42,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.3742387443780899
+  },
+  {
+    "gloss": "buy",
+    "cid": 69,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.2509896010160446
+  },
+  {
+    "gloss": "learn",
+    "cid": 59,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.23108902131207287
+  },
+  {
+    "gloss": "basketball",
+    "cid": 45,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.20232100039720535
+  },
+  {
+    "gloss": "how",
+    "cid": 49,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.20129907131195068
+  },
+  {
+    "gloss": "can",
+    "cid": 24,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.19276078417897224
+  },
+  {
+    "gloss": "walk",
+    "cid": 10,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.18596225981673342
+  },
+  {
+    "gloss": "rabbit",
+    "cid": 60,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.18515510451715356
+  },
+  {
+    "gloss": "accident",
+    "cid": 33,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.1757621163657556
+  },
+  {
+    "gloss": "show",
+    "cid": 62,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.16661724261939526
+  },
+  {
+    "gloss": "city",
+    "cid": 46,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.1548626646399498
+  },
+  {
+    "gloss": "banana",
+    "cid": 80,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.11304324772208929
+  },
+  {
+    "gloss": "doctor",
+    "cid": 39,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.3333333333333333,
+    "mean_true_conf": 0.08214034087965653
+  },
+  {
+    "gloss": "letter",
+    "cid": 50,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.3333333333333333,
+    "mean_true_conf": 0.019264753610850487
+  },
+  {
+    "gloss": "arrive",
+    "cid": 79,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.5,
+    "mean_true_conf": 0.018775843258481473
+  },
+  {
+    "gloss": "police",
+    "cid": 73,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 1.0,
+    "mean_true_conf": 0.017696264199912548
+  },
+  {
+    "gloss": "tall",
+    "cid": 31,
+    "n": 3,
+    "top1_acc": 0.0,
+    "top5_acc": 0.6666666666666666,
+    "mean_true_conf": 0.002875878840313817
+  },
+  {
+    "gloss": "champion",
+    "cid": 98,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.0,
+    "mean_true_conf": 0.0024064658687195095
+  },
+  {
+    "gloss": "small",
+    "cid": 92,
+    "n": 2,
+    "top1_acc": 0.0,
+    "top5_acc": 0.5,
+    "mean_true_conf": 7.795811239930117e-05
+  }
+]

@@ -1,0 +1,595 @@
+{
+  "accuracy": 1.0,
+  "correct": 28,
+  "total": 28,
+  "rows": [
+    {
+      "file": "A_test.jpg",
+      "true": "A",
+      "pred": "A",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "A",
+          "p": 1.0
+        },
+        {
+          "label": "T",
+          "p": 3.6827128013783295e-08
+        },
+        {
+          "label": "N",
+          "p": 3.450494645562685e-08
+        }
+      ]
+    },
+    {
+      "file": "B_test.jpg",
+      "true": "B",
+      "pred": "B",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "B",
+          "p": 1.0
+        },
+        {
+          "label": "E",
+          "p": 1.7622846237852485e-10
+        },
+        {
+          "label": "U",
+          "p": 1.4782371507426895e-11
+        }
+      ]
+    },
+    {
+      "file": "C_test.jpg",
+      "true": "C",
+      "pred": "C",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "C",
+          "p": 1.0
+        },
+        {
+          "label": "Q",
+          "p": 3.9181178301817e-09
+        },
+        {
+          "label": "G",
+          "p": 2.8474889113283552e-09
+        }
+      ]
+    },
+    {
+      "file": "D_test.jpg",
+      "true": "D",
+      "pred": "D",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "D",
+          "p": 1.0
+        },
+        {
+          "label": "I",
+          "p": 1.208894850890374e-08
+        },
+        {
+          "label": "F",
+          "p": 1.050229947452408e-08
+        }
+      ]
+    },
+    {
+      "file": "E_test.jpg",
+      "true": "E",
+      "pred": "E",
+      "confidence": 0.9999991655349731,
+      "correct": true,
+      "top3": [
+        {
+          "label": "E",
+          "p": 0.9999991655349731
+        },
+        {
+          "label": "A",
+          "p": 8.5101663671594e-07
+        },
+        {
+          "label": "I",
+          "p": 2.4877525817146307e-08
+        }
+      ]
+    },
+    {
+      "file": "F_test.jpg",
+      "true": "F",
+      "pred": "F",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "F",
+          "p": 1.0
+        },
+        {
+          "label": "Y",
+          "p": 7.666831477678732e-15
+        },
+        {
+          "label": "Q",
+          "p": 6.155909220610664e-17
+        }
+      ]
+    },
+    {
+      "file": "G_test.jpg",
+      "true": "G",
+      "pred": "G",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "G",
+          "p": 1.0
+        },
+        {
+          "label": "J",
+          "p": 5.667748936843964e-09
+        },
+        {
+          "label": "H",
+          "p": 8.574171234121408e-11
+        }
+      ]
+    },
+    {
+      "file": "H_test.jpg",
+      "true": "H",
+      "pred": "H",
+      "confidence": 0.9999998807907104,
+      "correct": true,
+      "top3": [
+        {
+          "label": "H",
+          "p": 0.9999998807907104
+        },
+        {
+          "label": "G",
+          "p": 1.3818770128182223e-07
+        },
+        {
+          "label": "Q",
+          "p": 1.5207149428597688e-10
+        }
+      ]
+    },
+    {
+      "file": "I_test.jpg",
+      "true": "I",
+      "pred": "I",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "I",
+          "p": 1.0
+        },
+        {
+          "label": "X",
+          "p": 4.359885341642666e-09
+        },
+        {
+          "label": "Y",
+          "p": 3.7114514239711127e-10
+        }
+      ]
+    },
+    {
+      "file": "J_test.jpg",
+      "true": "J",
+      "pred": "J",
+      "confidence": 0.9999814033508301,
+      "correct": true,
+      "top3": [
+        {
+          "label": "J",
+          "p": 0.9999814033508301
+        },
+        {
+          "label": "Q",
+          "p": 1.787639848771505e-05
+        },
+        {
+          "label": "Z",
+          "p": 3.341114052091143e-07
+        }
+      ]
+    },
+    {
+      "file": "K_test.jpg",
+      "true": "K",
+      "pred": "K",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "K",
+          "p": 1.0
+        },
+        {
+          "label": "V",
+          "p": 2.465913215808635e-13
+        },
+        {
+          "label": "W",
+          "p": 1.1678398997632886e-14
+        }
+      ]
+    },
+    {
+      "file": "L_test.jpg",
+      "true": "L",
+      "pred": "L",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "L",
+          "p": 1.0
+        },
+        {
+          "label": "Y",
+          "p": 1.1199210447898622e-08
+        },
+        {
+          "label": "I",
+          "p": 4.258350060916925e-14
+        }
+      ]
+    },
+    {
+      "file": "M_test.jpg",
+      "true": "M",
+      "pred": "M",
+      "confidence": 0.9999511241912842,
+      "correct": true,
+      "top3": [
+        {
+          "label": "M",
+          "p": 0.9999511241912842
+        },
+        {
+          "label": "N",
+          "p": 4.8278026952175424e-05
+        },
+        {
+          "label": "K",
+          "p": 5.393605420067615e-07
+        }
+      ]
+    },
+    {
+      "file": "N_test.jpg",
+      "true": "N",
+      "pred": "N",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "N",
+          "p": 1.0
+        },
+        {
+          "label": "M",
+          "p": 4.0926190388035355e-12
+        },
+        {
+          "label": "O",
+          "p": 1.6153850718007845e-13
+        }
+      ]
+    },
+    {
+      "file": "O_test.jpg",
+      "true": "O",
+      "pred": "O",
+      "confidence": 0.9999966621398926,
+      "correct": true,
+      "top3": [
+        {
+          "label": "O",
+          "p": 0.9999966621398926
+        },
+        {
+          "label": "D",
+          "p": 3.189851668139454e-06
+        },
+        {
+          "label": "P",
+          "p": 2.0021188618102315e-07
+        }
+      ]
+    },
+    {
+      "file": "P_test.jpg",
+      "true": "P",
+      "pred": "P",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "P",
+          "p": 1.0
+        },
+        {
+          "label": "Q",
+          "p": 1.2967939439292864e-12
+        },
+        {
+          "label": "del",
+          "p": 3.197713700276751e-14
+        }
+      ]
+    },
+    {
+      "file": "Q_test.jpg",
+      "true": "Q",
+      "pred": "Q",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "Q",
+          "p": 1.0
+        },
+        {
+          "label": "Y",
+          "p": 5.013021553423869e-09
+        },
+        {
+          "label": "space",
+          "p": 2.540519350446857e-09
+        }
+      ]
+    },
+    {
+      "file": "R_test.jpg",
+      "true": "R",
+      "pred": "R",
+      "confidence": 0.9999985694885254,
+      "correct": true,
+      "top3": [
+        {
+          "label": "R",
+          "p": 0.9999985694885254
+        },
+        {
+          "label": "U",
+          "p": 1.4806174704062869e-06
+        },
+        {
+          "label": "X",
+          "p": 3.988476215965875e-09
+        }
+      ]
+    },
+    {
+      "file": "S_test.jpg",
+      "true": "S",
+      "pred": "S",
+      "confidence": 0.9999998807907104,
+      "correct": true,
+      "top3": [
+        {
+          "label": "S",
+          "p": 0.9999998807907104
+        },
+        {
+          "label": "X",
+          "p": 8.508416016184128e-08
+        },
+        {
+          "label": "J",
+          "p": 4.08566735998761e-09
+        }
+      ]
+    },
+    {
+      "file": "T_test.jpg",
+      "true": "T",
+      "pred": "T",
+      "confidence": 0.9999994039535522,
+      "correct": true,
+      "top3": [
+        {
+          "label": "T",
+          "p": 0.9999994039535522
+        },
+        {
+          "label": "L",
+          "p": 3.2697704455131316e-07
+        },
+        {
+          "label": "Y",
+          "p": 2.1083999968141143e-07
+        }
+      ]
+    },
+    {
+      "file": "U_test.jpg",
+      "true": "U",
+      "pred": "U",
+      "confidence": 0.9999974966049194,
+      "correct": true,
+      "top3": [
+        {
+          "label": "U",
+          "p": 0.9999974966049194
+        },
+        {
+          "label": "R",
+          "p": 2.413665697531542e-06
+        },
+        {
+          "label": "B",
+          "p": 6.305704403075651e-08
+        }
+      ]
+    },
+    {
+      "file": "V_test.jpg",
+      "true": "V",
+      "pred": "V",
+      "confidence": 0.9999998807907104,
+      "correct": true,
+      "top3": [
+        {
+          "label": "V",
+          "p": 0.9999998807907104
+        },
+        {
+          "label": "K",
+          "p": 7.676398894318481e-08
+        },
+        {
+          "label": "W",
+          "p": 1.7560083165335527e-08
+        }
+      ]
+    },
+    {
+      "file": "W_test.jpg",
+      "true": "W",
+      "pred": "W",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "W",
+          "p": 1.0
+        },
+        {
+          "label": "V",
+          "p": 1.1608328014112157e-11
+        },
+        {
+          "label": "F",
+          "p": 6.908837651281585e-13
+        }
+      ]
+    },
+    {
+      "file": "X_test.jpg",
+      "true": "X",
+      "pred": "X",
+      "confidence": 0.9999991655349731,
+      "correct": true,
+      "top3": [
+        {
+          "label": "X",
+          "p": 0.9999991655349731
+        },
+        {
+          "label": "U",
+          "p": 8.676044558342255e-07
+        },
+        {
+          "label": "S",
+          "p": 1.5429375110898036e-08
+        }
+      ]
+    },
+    {
+      "file": "Y_test.jpg",
+      "true": "Y",
+      "pred": "Y",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "Y",
+          "p": 1.0
+        },
+        {
+          "label": "Q",
+          "p": 4.598224911944726e-09
+        },
+        {
+          "label": "Z",
+          "p": 1.3407949230048732e-11
+        }
+      ]
+    },
+    {
+      "file": "Z_test.jpg",
+      "true": "Z",
+      "pred": "Z",
+      "confidence": 0.9999736547470093,
+      "correct": true,
+      "top3": [
+        {
+          "label": "Z",
+          "p": 0.9999736547470093
+        },
+        {
+          "label": "Y",
+          "p": 2.6172163416049443e-05
+        },
+        {
+          "label": "X",
+          "p": 9.768208286686786e-08
+        }
+      ]
+    },
+    {
+      "file": "nothing_test.jpg",
+      "true": "nothing",
+      "pred": "nothing",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "nothing",
+          "p": 1.0
+        },
+        {
+          "label": "H",
+          "p": 1.64038027605784e-08
+        },
+        {
+          "label": "E",
+          "p": 1.5471469438921304e-08
+        }
+      ]
+    },
+    {
+      "file": "space_test.jpg",
+      "true": "space",
+      "pred": "space",
+      "confidence": 1.0,
+      "correct": true,
+      "top3": [
+        {
+          "label": "space",
+          "p": 1.0
+        },
+        {
+          "label": "del",
+          "p": 1.1648839670641564e-09
+        },
+        {
+          "label": "L",
+          "p": 4.597702774056245e-11
+        }
+      ]
+    }
+  ]
+}

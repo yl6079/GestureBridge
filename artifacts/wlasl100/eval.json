@@ -1,0 +1,22 @@
+{
+  "arch": "conv1d_small",
+  "epochs_run": 80,
+  "train": {
+    "top1": 0.9992973210364515,
+    "top5": 1.0,
+    "n": 11385
+  },
+  "val": {
+    "top1": 0.9944620253164557,
+    "top5": 0.9992088607594937,
+    "n": 1264
+  },
+  "test": {
+    "top1": 0.5271966527196653,
+    "top5": 0.8619246861924686,
+    "n": 239
+  },
+  "n_classes": 100,
+  "labels_path": "data/wlasl100_kaggle/labels.txt",
+  "data_path": "data/wlasl100_kaggle/landmarks.npz"
+}

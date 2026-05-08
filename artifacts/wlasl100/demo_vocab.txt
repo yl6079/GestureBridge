@@ -1,0 +1,38 @@
+# 20-word demo vocabulary for the GestureBridge final video.
+#
+# Selected from artifacts/wlasl100/per_class_test_ensemble.json — every
+# entry below is at 100% top-1 on the held-out test set with mean
+# true-class confidence ≥ 70%. Categories spread across objects,
+# actions, states, and descriptors so the demo flow has variety.
+#
+# Acceptance bar: live recognition top-1 should match these in single
+# captures with a clean signing demonstration.
+#
+# Source: Conv1D + GRU ensemble trained on Kaggle WLASL-100 landmarks
+# (chinhde/wlasl-300-landmarks, MIT license; ~12.7k training clips).
+
+# Concrete objects
+water
+tea
+chair
+table
+bed
+shirt
+pencil
+orange
+
+# Actions / verbs
+dance
+work
+travel
+finish
+enjoy
+have
+
+# States / descriptors
+new
+wrong
+many
+problem
+class
+snow

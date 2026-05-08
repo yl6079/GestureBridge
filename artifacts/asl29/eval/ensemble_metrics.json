@@ -1,0 +1,109 @@
+{
+  "n": 8700,
+  "mobilenet_accuracy": 0.8016091954022988,
+  "landmark_accuracy": 0.4714942528735632,
+  "ensemble_accuracy": 0.8288505747126437,
+  "no_hand_detected": 4028,
+  "top_confusions": [
+    {
+      "true": "X",
+      "pred": "nothing",
+      "count": 152
+    },
+    {
+      "true": "T",
+      "pred": "nothing",
+      "count": 112
+    },
+    {
+      "true": "Y",
+      "pred": "L",
+      "count": 107
+    },
+    {
+      "true": "M",
+      "pred": "N",
+      "count": 99
+    },
+    {
+      "true": "J",
+      "pred": "nothing",
+      "count": 96
+    },
+    {
+      "true": "Q",
+      "pred": "P",
+      "count": 73
+    },
+    {
+      "true": "Q",
+      "pred": "nothing",
+      "count": 68
+    },
+    {
+      "true": "U",
+      "pred": "nothing",
+      "count": 66
+    },
+    {
+      "true": "X",
+      "pred": "D",
+      "count": 62
+    },
+    {
+      "true": "S",
+      "pred": "E",
+      "count": 59
+    },
+    {
+      "true": "Z",
+      "pred": "nothing",
+      "count": 59
+    },
+    {
+      "true": "T",
+      "pred": "L",
+      "count": 54
+    },
+    {
+      "true": "U",
+      "pred": "B",
+      "count": 54
+    },
+    {
+      "true": "T",
+      "pred": "E",
+      "count": 40
+    },
+    {
+      "true": "X",
+      "pred": "I",
+      "count": 32
+    },
+    {
+      "true": "M",
+      "pred": "nothing",
+      "count": 24
+    },
+    {
+      "true": "J",
+      "pred": "G",
+      "count": 22
+    },
+    {
+      "true": "Z",
+      "pred": "A",
+      "count": 20
+    },
+    {
+      "true": "D",
+      "pred": "I",
+      "count": 16
+    },
+    {
+      "true": "S",
+      "pred": "nothing",
+      "count": 11
+    }
+  ]
+}
