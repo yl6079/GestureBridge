@@ -351,50 +351,6 @@ bash deploy/kiosk/open_kiosk.sh
 KIOSK=0 bash deploy/kiosk/open_kiosk.sh
 ```
 
-## Repository Walkthrough
-
-```text
-src/gesturebridge/
-  app.py                    CLI entrypoint and runtime assembly
-  config.py                 system-wide dataclass config defaults
-  bootstrap.py              synthetic/demo controller bootstrap
-  devices/
-    xiao.py                 serial event parsing (Hand/Empty)
-    rpi.py
-  modes/
-    translate.py
-    learn.py
-  pipelines/
-    asl29_tflite.py         letter inference runtime + hand crop integration
-    hand_crop.py
-    landmark_classifier.py  landmark MLP head
-    word_classifier.py      Conv1D word model inference (numpy)
-    word_ensemble.py        Conv1D + GRU ensemble inference
-    asr.py                  simple ASR interface
-    vosk_stt.py             offline Vosk capture/transcribe utility
-    tts.py                  text-to-speech output
-  system/
-    main_runtime.py         camera loop, mode logic, speech/sign bridging
-    daemon.py               standby/wake process manager
-    mic_default.py          C270 microphone preference helpers
-  ui/
-    web.py                  HTTP server, UI page, JSON API
-
-scripts/
-  data prep, training, evaluation, export, deployment, diagnostics
-
-deploy/
-  systemd/                  service templates
-  kiosk/                    Chromium launcher
-
-tests/
-  test_daemon_serial.py
-  test_state_machine.py
-  test_translate_mode.py
-  test_learn_mode.py
-  test_training_pipeline.py
-```
-
 ## Data and Artifact Policy
 
 This repository intentionally ignores most large/generated outputs:
