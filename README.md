@@ -16,7 +16,7 @@ UI is a local web app on `localhost:8080` with three modes: Read (letter recogni
 
 Full system walkthrough on YouTube (click to play):
 
-[![Full demo](https://img.youtube.com/vi/uCTLwS_5yoM/maxresdefault.jpg)](https://www.youtube.com/watch?v=uCTLwS_5yoM)
+[![Full demo](docs/demo_poster.png)](https://www.youtube.com/watch?v=uCTLwS_5yoM)
 
 ## Results
 
