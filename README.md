@@ -38,10 +38,10 @@ These are the engineering meat of the project; each was a multi-percentage-point
 
 ### Hardware trade-offs
 
-We deliberately ship FP32 letter inference because INT8 post-training quantization collapsed accuracy from 0.802 → 0.218 (table above) — calibration on the production distribution would require a longer effort than the project allowed. To keep FP32 inference inside the Pi 5's per-frame compute budget, the camera capture pipeline is run at:
+We deliberately ship FP32 letter inference because INT8 post-training quantization collapsed accuracy from 0.802 to 0.218 (table above); calibration on the production distribution would require a longer effort than the project allowed. To keep FP32 inference inside the Pi 5's per-frame compute budget, the camera capture pipeline is run at:
 
-- **640 × 480 resolution** (not the C270's 1280 × 720 max) — limits Pi-side decode + downscale work.
-- **`inference_interval_ms = 300`** (≈ 3 fps inference cadence) by default — the camera grabber spins faster, but the heavy stack only runs every ~300 ms, leaving thermal headroom on the Cortex-A76.
+- **640 × 480 resolution** (not the C270's 1280 × 720 max), which limits Pi-side decode and downscale work.
+- **`inference_interval_ms = 300`** (≈ 3 fps inference cadence) by default. The camera grabber spins faster, but the heavy stack only runs every ~300 ms, leaving thermal headroom on the Cortex-A76.
 - **`use_hand_crop = true`** so MediaPipe is the only source of full-frame compute; downstream MobileNet sees a 224 × 224 hand crop.
 
 This is a real precision-vs-latency tradeoff: a higher-resolution camera path with INT8 inference would extract finer hand detail, but accuracy was unacceptable. We optimize for honest FP32 accuracy at lower capture resolution. See `docs/hardware_tradeoff.md` for the detailed trade table.
@@ -52,9 +52,9 @@ The reverse direction: spoken English in (offline Vosk small-en model on the C27
 
 ## Word recognition (WLASL-100)
 
-Pose-only sequence classification on top of the existing MediaPipe stream — no new hardware, no new accelerator, ships as **pure numpy** on the Pi.
+Pose-only sequence classification on top of the existing MediaPipe stream, with no new hardware and no new accelerator. Ships as **pure numpy** on the Pi.
 
-This is the project's stretch contribution, not its primary deliverable. We ship it because the ensemble + calibrated gating are interesting in their own right, but it should be read as an honest exploration of where landmark-only ASL recognition tops out under our hardware constraints — not as a finished consumer-grade word recognizer.
+This is the project's stretch contribution, not its primary deliverable. The ensemble plus calibrated gating illustrate where landmark-only ASL recognition tops out under our hardware constraints, rather than a finished consumer-grade word recognizer.
 
 ### Models and accuracy
 
@@ -89,13 +89,13 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 
 ### Limitations
 
-- **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 % — anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation in time for this report; that remains future work.
+- **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 %, and anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation in time for this report; that remains future work.
 - **Camera-precision floor.** The 640 × 480 capture (mandated by the FP32 letter pipeline above) yields slightly degraded MediaPipe landmark precision compared to a 1280 × 720 capture. Higher resolution would likely improve word recognition but at the cost of letter inference latency.
-- **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1 — i.e. our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
+- **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1, so our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
 
 ### Dynamic gesture capture
 
-Two short captures of dynamic gestures performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letters N and P are not in the WLASL-100 vocabulary, so these clips are not measuring word-recognition accuracy — they illustrate the end-to-end behavior of the dynamic path: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
+Two short captures of dynamic gestures performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letters N and P are not in the WLASL-100 vocabulary, so these clips do not measure word-recognition accuracy. They illustrate the end-to-end behavior of the dynamic path: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
 
 Capture path on letter N:
 
@@ -279,7 +279,7 @@ Notes:
   ensemble + gating; otherwise it gracefully falls back to fewer heads.
 - `scripts/train_wlasl100_pose.py` is the original Keras pipeline;
   `scripts/train_conv1d_a100.py` is the PyTorch BigConv1D used on A100.
-  The two pipelines coexist — BigConv1D is the preferred backbone, the
+  The two pipelines coexist: BigConv1D is the preferred backbone, the
   Keras heads remain in the ensemble for diversity.
 
 #### Optional: signer-conditioned few-shot (5-word demo)
@@ -445,7 +445,7 @@ upstream datasets and models if you reuse this work.
   <https://www.kaggle.com/datasets/grassknoted/asl-alphabet>
 - **Word reference clips** (`assets/word_clips/`): aslbricks.org direct
   MP4s, signbsl.com Start ASL mirror, plus selected clips mined from the
-  WLASL pool. Educational / academic use only — not redistributed.
+  WLASL pool. Educational / academic use only, not redistributed.
   Per-clip provenance: `assets/word_clips/SOURCES.md`.
 
 ### Models and libraries
