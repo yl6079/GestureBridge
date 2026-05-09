@@ -34,53 +34,40 @@ No camera frames or audio leave the device; the ESP32 path only carries **low-ba
 
 ### Data path when the main app is running
 
-Word capture (30-frame buffer → 5-way ensemble + gating) adds **~1.3 s** from button press to result on Pi 5; letter inference is **~37.6 ms mean** per frame when a hand is present, **~9 ms** when MediaPipe finds no hand (`"nothing"` short-circuit).
+Word capture (30-frame buffer -> 5-way ensemble + gating) adds **~1.3 s** from button press to result on Pi 5; letter inference is **~37.6 ms mean** per frame when a hand is present, **~9 ms** when MediaPipe finds no hand (`"nothing"` short-circuit).
 
+**Control plane (wake / sleep lifecycle)**
+
+```text
+ESP32 (Edge Impulse hand/empty)
+    |
+    | USB serial events: Hand: / Empty:
+    v
+Pi daemon (--run-daemon)
+    STANDBY -> WAKING -> ACTIVE -> IDLE_TIMEOUT -> STANDBY
+                  |                    |
+                  | start main app     | stop main app
+                  v                    v
+             gesturebridge --run-main process lifecycle
 ```
-ESP32 (presence MCU)
-  Edge Impulse hand / empty classifier
-           |
-           |  USB serial  (debounced Hand: / Empty: events)
-           v
-+---------------------- Raspberry Pi 5 ----------------------+
-|  Wake daemon (serial listener + lifecycle)                  |
-|    STANDBY ----presence----> launch main app ---> ACTIVE      |
-|       ^                           |                          |
-|       |                     idle / absent                  |
-|       +----------- stop main app ---------------------------+
-|
-|  When ACTIVE: main app process                                |
-|                                                              |
-|   C270 camera (640 x 480)  --->  MediaPipe HandLandmarker    |
-|                                         |                    |
-|                     +-------------------+--------------------+ |
-|                     |                                        |
-|              no hand                          hand           |
-|                 |                                |           |
-|                 v                                v           |
-|            "nothing"                     crop + resize      |
-|            [ ~9 ms ]                     224 x 224            |
-|                                               |              |
-|                     +-------------------------+--------------+-+
-|                     |                                        |
-|                     |            letter pipeline             |
-|                     |      [ ~38 ms / frame hand-present ]   |
-|                     |            +-- MobileNetV3-Small       |
-|                     |            |   (TFLite FP32)           |
-|                     |            +-- Landmark MLP ensemble   |
-|                     |                                        |
-|                     |            30-frame landmark buffer    |
-|                     |                     |                  |
-|                     |                     v                  |
-|                     |            word pipeline (optional)    |
-|                     |      [ ~17 ms / clip ]                 |
-|                     |            +-- Conv1D-Small (npz)      |
-|                     |            +-- GRU-Small (npz)         |
-|                     |            +-- BigConv1D x 3 (npz)     |
-|                     |            +-- confidence gate T=0.48 |
-|                     v                                        |
-|              Speaker + browser UI (three modes)               |
-+------------------------------------------------------------+
+
+**Active data plane (only while `--run-main` is running)**
+
+```text
+C270 camera (640x480)
+    -> MediaPipe HandLandmarker
+         |- no hand -> "nothing" [~9 ms]
+         `- hand    -> crop/resize 224x224
+                        -> Letter pipeline [~38 ms/frame]
+                           |- MobileNetV3-Small (TFLite FP32)
+                           `- Landmark MLP ensemble
+                        -> 30-frame landmark buffer
+                           -> Word pipeline (optional) [~17 ms/clip]
+                              |- Conv1D-Small (npz)
+                              |- GRU-Small (npz)
+                              |- BigConv1D x3 (npz)
+                              `- confidence gate (T=0.48)
+                        -> UI + speaker feedback
 ```
 
 Microphone capture for **speech-to-sign** uses the **same C270** device; in that mode the vision heavy path can be paused while **Vosk** transcribes locally.
@@ -186,54 +173,6 @@ The clip below shows a dynamic gesture performed in the Read tab. The user signs
 <video src="https://github.com/user-attachments/assets/ad9de90b-48d2-4eaa-b123-0e8039870dfa" poster="docs/demo_poster.png" controls></video>
 
 Other demos (letter recognition, speech-to-sign, Learner mode) are included in the project's presentation video.
-
-## Runtime Architecture
-
-```
-C270 camera  ->  MediaPipe HandLandmarker
-                     |
-                     +-- no hand  ->  "nothing"           [~9 ms]
-                     |
-                     +-- hand     ->  crop+resize 224
-                                          |
-                                          +-- letter pipeline                       [~38 ms / frame]
-                                          |    +-- MobileNetV3-Small (TFLite FP32)
-                                          |    +-- Landmark MLP ensemble
-                                          |
-                                          +-- 30-frame rolling landmark buffer
-                                                   |
-                                                   +-- word pipeline (5-way ens.)   [~17 ms / clip]
-                                                        +-- Conv1D-Small  (npz, numpy)
-                                                        +-- GRU-Small     (npz, numpy)
-                                                        +-- BigConv1D × 3 (npz, numpy, A100-trained)
-                                                        +-- confidence gate (T=0.48)
-```
-
-Word capture latency (button press → top-5 + gating): **~1.3 s** on Pi 5.
-
-Main entrypoint: `python -m gesturebridge.app`
-
-Supported flags:
-
-- `--run-main`: run camera loop + web UI.
-- `--run-daemon`: run standby daemon (serial wake-trigger).
-- `--benchmark-asl29`: benchmark letter runtime.
-- `--demo`: synthetic controller demo path.
-- `--camera-index N`: override camera index.
-- `--speech "..."`: inject one utterance into speech-to-sign flow at startup.
-
-## Hardware
-
-Typical deployment hardware:
-
-- Raspberry Pi 5 (8GB)
-- Logitech C270 webcam (video + microphone)
-- USB speaker
-- ESP32 serial wake-trigger node (emits `Hand:` / `Empty:` style events)
-- HDMI display (kiosk optional)
-
-
-
 
 ## Quick Start
 
