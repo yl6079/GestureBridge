@@ -18,6 +18,86 @@ Full system walkthrough on YouTube (click to play):
 
 [![Full demo](docs/demo_poster.png)](https://www.youtube.com/watch?v=uCTLwS_5yoM)
 
+## System architecture
+
+GestureBridge is a **standalone edge stack**: all sensing, recognition, and feedback stay on the Pi; nothing is sent to the cloud. Physically, the deployment is built around a **Raspberry Pi 5**, a **Logitech C270** USB webcam (shared video + microphone), a **USB speaker**, an **HDMI or DSI display** for the local browser UI, and an **ESP32** companion board connected over **USB serial**.
+
+### Wake path (ESP32 → Pi daemon)
+
+The ESP32 runs a **tiny Edge Impulse** binary classifier trained on hand-present vs empty frames. At runtime it emits debounced serial events (e.g. `Hand:` / `Empty:` style lines) when a user enters or leaves the frame. On the Pi, **`gesturebridge` is split into two roles**:
+
+- **Wake daemon** (`--run-daemon`): listens on serial and implements a small state machine — **`STANDBY`** → **`WAKING`** → **`ACTIVE`** ⇄ **`IDLE_TIMEOUT`**. In **`STANDBY`**, the heavy **camera + inference + web UI process is not running**; only the daemon listens. When presence is reported, the daemon starts the main app; **`ACTIVE`** means the full pipeline is live and repeated presence refreshes an activity timer. When the ESP32 reports absence or the idle timer expires, the daemon **stops** the main app and returns to **`STANDBY`**, keeping the expensive loop off when nobody is there.
+
+- **Main application** (`--run-main`): owns the C270 capture path, MediaPipe, letter/word models, Vosk speech-to-sign, TTS, and the UI on `localhost:8080`.
+
+No camera frames or audio leave the device; the ESP32 path only carries **low-bandwidth serial hints**.
+
+### Data path when the main app is running
+
+Word capture (30-frame buffer → 5-way ensemble + gating) adds **~1.3 s** from button press to result on Pi 5; letter inference is **~37.6 ms mean** per frame when a hand is present, **~9 ms** when MediaPipe finds no hand (`"nothing"` short-circuit).
+
+```
+ESP32 (presence MCU)
+  Edge Impulse hand / empty classifier
+           |
+           |  USB serial  (debounced Hand: / Empty: events)
+           v
++---------------------- Raspberry Pi 5 ----------------------+
+|  Wake daemon (serial listener + lifecycle)                  |
+|    STANDBY ----presence----> launch main app ---> ACTIVE      |
+|       ^                           |                          |
+|       |                     idle / absent                  |
+|       +----------- stop main app ---------------------------+
+|
+|  When ACTIVE: main app process                                |
+|                                                              |
+|   C270 camera (640 x 480)  --->  MediaPipe HandLandmarker    |
+|                                         |                    |
+|                     +-------------------+--------------------+ |
+|                     |                                        |
+|              no hand                          hand           |
+|                 |                                |           |
+|                 v                                v           |
+|            "nothing"                     crop + resize      |
+|            [ ~9 ms ]                     224 x 224            |
+|                                               |              |
+|                     +-------------------------+--------------+-+
+|                     |                                        |
+|                     |            letter pipeline             |
+|                     |      [ ~38 ms / frame hand-present ]   |
+|                     |            +-- MobileNetV3-Small       |
+|                     |            |   (TFLite FP32)           |
+|                     |            +-- Landmark MLP ensemble   |
+|                     |                                        |
+|                     |            30-frame landmark buffer    |
+|                     |                     |                  |
+|                     |                     v                  |
+|                     |            word pipeline (optional)    |
+|                     |      [ ~17 ms / clip ]                 |
+|                     |            +-- Conv1D-Small (npz)      |
+|                     |            +-- GRU-Small (npz)         |
+|                     |            +-- BigConv1D x 3 (npz)     |
+|                     |            +-- confidence gate T=0.48 |
+|                     v                                        |
+|              Speaker + browser UI (three modes)               |
++------------------------------------------------------------+
+```
+
+Microphone capture for **speech-to-sign** uses the **same C270** device; in that mode the vision heavy path can be paused while **Vosk** transcribes locally.
+
+### Runtime entrypoints
+
+Main entrypoint: `python -m gesturebridge.app`
+
+Supported flags:
+
+- `--run-main`: run camera loop + web UI.
+- `--run-daemon`: run standby daemon (serial wake-trigger).
+- `--benchmark-asl29`: benchmark letter runtime.
+- `--demo`: synthetic controller demo path.
+- `--camera-index N`: override camera index.
+- `--speech "..."`: inject one utterance into speech-to-sign flow at startup.
+
 ## Results
 
 ### Letter recognition (29-class)
@@ -141,6 +221,19 @@ Supported flags:
 - `--demo`: synthetic controller demo path.
 - `--camera-index N`: override camera index.
 - `--speech "..."`: inject one utterance into speech-to-sign flow at startup.
+
+## Hardware
+
+Typical deployment hardware:
+
+- Raspberry Pi 5 (8GB)
+- Logitech C270 webcam (video + microphone)
+- USB speaker
+- ESP32 serial wake-trigger node (emits `Hand:` / `Empty:` style events)
+- HDMI display (kiosk optional)
+
+
+
 
 ## Quick Start
 
@@ -298,23 +391,6 @@ The following are intentionally not redistributed and must be re-fetched locally
 - Speech-to-sign clips (`assets/word_clips/*.mp4`). License uncertain; see `assets/word_clips/SOURCES.md` and `scripts/fetch_word_clips.sh`.
 - A100 PyTorch checkpoints (`artifacts/wlasl100_a100*/ckpts/`). Only needed to re-export the BigConv1D npz weights, which we already ship.
 
-## Hardware
-
-Typical deployment hardware:
-
-- Raspberry Pi 5 (8GB)
-- Logitech C270 webcam (video + microphone)
-- USB speaker
-- ESP32 serial wake-trigger node (emits `Hand:` / `Empty:` style events)
-- HDMI display (kiosk optional)
-
-## Testing
-
-```bash
-pytest
-```
-
-Test suite covers daemon state transitions, mode logic, and parts of the training pipeline.
 
 ## Citations
 
