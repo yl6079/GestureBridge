@@ -20,15 +20,15 @@ Full system walkthrough on YouTube (click to play):
 
 ## System architecture
 
-GestureBridge is a **standalone edge stack**: all sensing, recognition, and feedback stay on the Pi; nothing is sent to the cloud. The product setup matches the course report: a **Raspberry Pi 5**, **Logitech C270** USB webcam (video + microphone), **USB speaker**, **5-inch DSI display** for the browser UI (other HDMI/DSI setups also work), and an **ESP32** sensor node on **USB serial**.
+GestureBridge is a **standalone edge stack**: all sensing, recognition, and feedback stay on the Pi; nothing is sent to the cloud. The hardware includes a **Raspberry Pi 5**, **Logitech C270** USB webcam (video + microphone), **USB speaker**, **5-inch DSI display** for the local browser UI, and an **ESP32** sensor node on **USB serial**.
 
 ### Wake path (ESP32 → Pi daemon)
 
-The ESP32 runs a **tiny Edge Impulse** binary classifier trained on hand-present vs empty frames. At runtime it emits **debounced serial presence events** aligned with the report: **`HUMAN_ON`** when a user is present and **`HUMAN_OFF`** when they leave. The Pi daemon parses these lines; some firmware builds surface the same semantics as plain-text prefixes such as `Hand:` / `Empty:` instead of the symbolic names—either style maps to the same wake logic.
+The ESP32 runs a **tiny Edge Impulse** binary classifier trained on hand-present vs empty frames. At runtime it emits **debounced serial events**, **`HUMAN_ON`** when a user is present and **`HUMAN_OFF`** when they leave. The Pi daemon parses these lines and drives wake logic.
 
 On the Pi, **`gesturebridge` is split into two roles**:
 
-- **Wake daemon** (`--run-daemon`): listens on serial and runs the four-state machine from the report — **`STANDBY`** → **`WAKING`** → **`ACTIVE`** ⇄ **`IDLE_TIMEOUT`**. In **`STANDBY`**, the **main app is not running** (no camera/inference/UI process); only the daemon listens. On a debounced **`HUMAN_ON`**, the daemon enters **`WAKING`** and **starts** the main application; once it is up, the system is **`ACTIVE`**, and repeated presence refreshes an activity timer. On **`HUMAN_OFF`**, the daemon enters **`IDLE_TIMEOUT`**; if no further activity arrives before the timeout, it **stops** the main app and returns to **`STANDBY`**, keeping the expensive pipeline off when nobody is there.
+- **Wake daemon** (`--run-daemon`): listens on serial and implements the four-state machine **`STANDBY`** → **`WAKING`** → **`ACTIVE`** ⇄ **`IDLE_TIMEOUT`**. In **`STANDBY`**, the **main app is not running** (no camera/inference/UI process); only the daemon listens. On a debounced **`HUMAN_ON`**, the daemon enters **`WAKING`** and **starts** the main application; once it is up, the system is **`ACTIVE`**, and repeated presence refreshes an activity timer. On **`HUMAN_OFF`**, the daemon enters **`IDLE_TIMEOUT`**; if no further activity arrives before the timeout, it **stops** the main app and returns to **`STANDBY`**, keeping the expensive pipeline off when nobody is there.
 
 - **Main application** (`--run-main`): owns the C270 capture path, MediaPipe, letter/word models, Vosk **speech-to-sign**, TTS, and the UI on `localhost:8080`.
 
@@ -44,7 +44,6 @@ Word capture (30-frame buffer -> 5-way ensemble + gating) adds **~1.3 s** from b
 ESP32 (Edge Impulse hand/empty)
     |
     | USB serial: HUMAN_ON / HUMAN_OFF (debounced)
-    |   [some builds use Hand: / Empty: for the same semantics]
     v
 Pi daemon (--run-daemon)
 
@@ -164,7 +163,7 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 
 ### Limitations
 
-- **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 %, and anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation in time for this report; that remains future work.
+- **Cross-signer drop is real.** WLASL-100's test split shares signers with train. Deployment-time accuracy on a new signer with the C270 will be lower than the held-out 67.4 %, and anecdotally we observed a substantial gap when testing with different signers under different lighting. We did not run a formal signer-disjoint evaluation during the project timeline; that remains future work.
 - **Camera-precision floor.** The 640 × 480 capture (mandated by the FP32 letter pipeline above) yields slightly degraded MediaPipe landmark precision compared to a 1280 × 720 capture. Higher resolution would likely improve word recognition but at the cost of letter inference latency.
 - **Pose-only ceiling.** Published WLASL-100 baselines using full-body Holistic (543 keypoints) or graph-based skeleton models (ST-GCN family) report 65-70 % top-1, so our 67.4 % is in the upper half of pose-only baselines, not a state-of-the-art number.
 
