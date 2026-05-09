@@ -1,6 +1,6 @@
 # GestureBridge
 
-Real-time American Sign Language system on Raspberry Pi 5. Camera in, speech out, fully offline.
+**Offline bidirectional ASL interaction** on Raspberry Pi 5 — camera in, speech out, fully local (no cloud).
 
 Yizheng Lin, Shufeng Chen. ELEN 6908, Spring 2026.
 
@@ -10,7 +10,7 @@ GestureBridge runs the entire vision and speech pipeline on a single Raspberry P
 
 A pose-only WLASL-100 word classifier is included as an optional extension; see the "Word recognition" section for results and limitations.
 
-UI is a local web app on `localhost:8080` with three modes: Read (letter recognition + TTS, plus a Capture Word button for the extension), Speech-to-sign (offline speech to sign clips), Trainer (letter practice with feedback).
+UI is a local web app on `localhost:8080` with three modes: Sign-to-speech (letter recognition + TTS, plus a Capture Word button for the extension), Speech-to-sign (offline speech to sign clips) and learn mode (letter practice with feedback).
 
 ## Demo
 
@@ -20,15 +20,17 @@ Full system walkthrough on YouTube (click to play):
 
 ## System architecture
 
-GestureBridge is a **standalone edge stack**: all sensing, recognition, and feedback stay on the Pi; nothing is sent to the cloud. Physically, the deployment is built around a **Raspberry Pi 5**, a **Logitech C270** USB webcam (shared video + microphone), a **USB speaker**, an **HDMI or DSI display** for the local browser UI, and an **ESP32** companion board connected over **USB serial**.
+GestureBridge is a **standalone edge stack**: all sensing, recognition, and feedback stay on the Pi; nothing is sent to the cloud. The product setup matches the course report: a **Raspberry Pi 5**, **Logitech C270** USB webcam (video + microphone), **USB speaker**, **5-inch DSI display** for the browser UI (other HDMI/DSI setups also work), and an **ESP32** sensor node on **USB serial**.
 
 ### Wake path (ESP32 → Pi daemon)
 
-The ESP32 runs a **tiny Edge Impulse** binary classifier trained on hand-present vs empty frames. At runtime it emits debounced serial events (e.g. `Hand:` / `Empty:` style lines) when a user enters or leaves the frame. On the Pi, **`gesturebridge` is split into two roles**:
+The ESP32 runs a **tiny Edge Impulse** binary classifier trained on hand-present vs empty frames. At runtime it emits **debounced serial presence events** aligned with the report: **`HUMAN_ON`** when a user is present and **`HUMAN_OFF`** when they leave. The Pi daemon parses these lines; some firmware builds surface the same semantics as plain-text prefixes such as `Hand:` / `Empty:` instead of the symbolic names—either style maps to the same wake logic.
 
-- **Wake daemon** (`--run-daemon`): listens on serial and implements a small state machine — **`STANDBY`** → **`WAKING`** → **`ACTIVE`** ⇄ **`IDLE_TIMEOUT`**. In **`STANDBY`**, the heavy **camera + inference + web UI process is not running**; only the daemon listens. When presence is reported, the daemon starts the main app; **`ACTIVE`** means the full pipeline is live and repeated presence refreshes an activity timer. When the ESP32 reports absence or the idle timer expires, the daemon **stops** the main app and returns to **`STANDBY`**, keeping the expensive loop off when nobody is there.
+On the Pi, **`gesturebridge` is split into two roles**:
 
-- **Main application** (`--run-main`): owns the C270 capture path, MediaPipe, letter/word models, Vosk speech-to-sign, TTS, and the UI on `localhost:8080`.
+- **Wake daemon** (`--run-daemon`): listens on serial and runs the four-state machine from the report — **`STANDBY`** → **`WAKING`** → **`ACTIVE`** ⇄ **`IDLE_TIMEOUT`**. In **`STANDBY`**, the **main app is not running** (no camera/inference/UI process); only the daemon listens. On a debounced **`HUMAN_ON`**, the daemon enters **`WAKING`** and **starts** the main application; once it is up, the system is **`ACTIVE`**, and repeated presence refreshes an activity timer. On **`HUMAN_OFF`**, the daemon enters **`IDLE_TIMEOUT`**; if no further activity arrives before the timeout, it **stops** the main app and returns to **`STANDBY`**, keeping the expensive pipeline off when nobody is there.
+
+- **Main application** (`--run-main`): owns the C270 capture path, MediaPipe, letter/word models, Vosk **speech-to-sign**, TTS, and the UI on `localhost:8080`.
 
 No camera frames or audio leave the device; the ESP32 path only carries **low-bandwidth serial hints**.
 
@@ -41,14 +43,14 @@ Word capture (30-frame buffer -> 5-way ensemble + gating) adds **~1.3 s** from b
 ```text
 ESP32 (Edge Impulse hand/empty)
     |
-    | USB serial events: Hand: / Empty:
+    | USB serial: HUMAN_ON / HUMAN_OFF (debounced)
+    |   [some builds use Hand: / Empty: for the same semantics]
     v
 Pi daemon (--run-daemon)
-    STANDBY -> WAKING -> ACTIVE -> IDLE_TIMEOUT -> STANDBY
-                  |                    |
-                  | start main app     | stop main app
-                  v                    v
-             gesturebridge --run-main process lifecycle
+
+    STANDBY --HUMAN_ON--> WAKING --> ACTIVE   (--run-main; timer refreshed on presence)
+
+    ACTIVE --HUMAN_OFF--> IDLE_TIMEOUT --timer expires--> STANDBY   (stop main app)
 ```
 
 **Active data plane (only while `--run-main` is running)**
@@ -168,11 +170,11 @@ The deployed UI applies a calibrated probability threshold so users see honest "
 
 ### Dynamic gesture capture
 
-The clip below shows a dynamic gesture performed in the Read tab. The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letter shown is not in the WLASL-100 vocabulary, so the clip does not measure word-recognition accuracy. It illustrates the dynamic path end to end: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
+The clip below shows a dynamic gesture performed in the **sign-to-speech** UI (**Read** tab). The user signs a letter, the word-mode UI buffers 30 frames over ~1.3 s, and the 5-way ensemble emits a top-5 list with calibrated confidence bars. The letter shown is not in the WLASL-100 vocabulary, so the clip does not measure word-recognition accuracy. It illustrates the dynamic path end to end: capture buffering, top-5 with confidence, and the gating threshold deciding between a confident top-1 and an "ambiguous" top-3.
 
 <video src="https://github.com/user-attachments/assets/ad9de90b-48d2-4eaa-b123-0e8039870dfa" poster="docs/demo_poster.png" controls></video>
 
-Other demos (letter recognition, speech-to-sign, Learner mode) are included in the project's presentation video.
+Other demos (sign-to-speech, speech-to-sign, Learn mode) are included in the project's presentation video.
 
 ## Quick Start
 
@@ -224,7 +226,7 @@ Open `http://127.0.0.1:8080`.
 
 ### ASL29 (letters)
 
-The Kaggle ASL Alphabet dataset is split with `--split-mode contiguous` to avoid frame-level leakage. The MobileNetV3 sweep is GPU-bound (we used a Vast.ai RTX 4090); everything else runs on CPU.
+The Kaggle ASL Alphabet dataset is split with `--split-mode contiguous` to avoid frame-level leakage. The MobileNetV3 sweep is GPU-bound; everything else runs on CPU.
 
 ```bash
 kaggle datasets download grassknoted/asl-alphabet
@@ -241,7 +243,7 @@ See `scripts/` for the data-prep, training, export, and evaluation helpers.
 
 ### WLASL-100 (word-level)
 
-Pre-extracted Holistic landmarks are pulled from Kaggle and converted to the GestureBridge `(N, 30, 63)` format. The Keras Conv1D and GRU baselines train on a Mac CPU in ~30 min combined; the BigConv1D swarm is GPU-bound (~90 s per seed on an A100). Each PyTorch checkpoint is exported to `.npz` so the Pi runtime stays NumPy-only.
+Pre-extracted Holistic landmarks are pulled from Kaggle and converted to the GestureBridge `(N, 30, 63)` format. The Keras Conv1D and GRU baselines train on a Mac CPU in ~30 min combined; the BigConv1D swarm is GPU-bound. Each PyTorch checkpoint is exported to `.npz` so the Pi runtime stays NumPy-only.
 
 ```bash
 kaggle datasets download chinhde/wlasl-300-landmarks -p data/wlasl_external/
@@ -328,7 +330,7 @@ The following are intentionally not redistributed and must be re-fetched locally
 - Raw Kaggle ASL alphabet images (`data/asl29_raw/`) and the derived `data/asl29/splits/` CSVs. Re-create with `kaggle datasets download grassknoted/asl-alphabet` then `python scripts/prepare_asl29.py`.
 - Raw WLASL clips (`data/wlasl100/videos/`). License is mixed; re-fetch with `python scripts/prepare_wlasl100.py`.
 - Speech-to-sign clips (`assets/word_clips/*.mp4`). License uncertain; see `assets/word_clips/SOURCES.md` and `scripts/fetch_word_clips.sh`.
-- A100 PyTorch checkpoints (`artifacts/wlasl100_a100*/ckpts/`). Only needed to re-export the BigConv1D npz weights, which we already ship.
+- PyTorch checkpoints (`artifacts/wlasl100*/ckpts/`). Only needed to re-export the BigConv1D npz weights, which we already ship.
 
 
 ## Citations
